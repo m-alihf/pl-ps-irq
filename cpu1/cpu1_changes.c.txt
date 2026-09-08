@@ -1,0 +1,58 @@
+Changes to apply to the SDK "lwIP Echo Server" template on CPU1.
+Copy the current amp_shared.h from ../cpu0/src into this project's src/ first -
+it now carries the two-way handshake, so both cores must use the same version.
+
+---- 1. add to the includes at the top of main.c ----
+
+#include "xil_mmu.h"
+#include "amp_shared.h"
+
+
+---- 2. first statement inside main(), before init_platform() ----
+
+	{
+		u32 a;
+		for (a = SHARED_BASE; a < SHARED_BASE + SHARED_SIZE; a += 0x100000u) {
+			Xil_SetTlbAttributes(a, 0x14de2);
+		}
+	}
+	while (AMP_SYNC->cpu0_ready != AMP_MAGIC) { }
+
+The TLB loop must come first: until the shared window is non-cacheable, CPU1
+would read its own cached copy of the flag and spin forever.
+
+The wait makes the start order irrelevant. It also keeps CPU1 away from the
+GIC until CPU0 has finished configuring IRQ 61, so the read-modify-write both
+drivers do on the ICDICFR word covering IRQs 48..63 cannot race.
+
+
+---- 3. right after the platform_enable_interrupts() call ----
+
+	platform_enable_interrupts();
+	AMP_SYNC->cpu1_ready = AMP_MAGIC;       /* <-- add this line */
+
+
+---- 4. inside the final while (1) packet loop ----
+
+	while (1) {
+		AMP_SYNC->cpu1_heartbeat++;         /* <-- add this line */
+		if (TcpFastTmrFlag) {
+			...
+
+
+---- notes ----
+
+* If you already added the earlier version of these edits, rename
+  cpu1_gic_ready to cpu1_ready and add the wait loop from step 2.
+
+* stdout = none in the BSP makes every xil_printf() in the template a no-op,
+  so they do not need to be deleted. They only cost CPU1 cycles.
+
+* Never call these on CPU1 - they are whole-cache maintenance operations that
+  stall the shared L2/DDR path and will show up as jitter on CPU0:
+      Xil_DCacheFlush()
+      Xil_DCacheInvalidate()
+      Xil_L2CacheFlush()
+  The range variants are fine:
+      Xil_DCacheFlushRange(addr, len)
+      Xil_DCacheInvalidateRange(addr, len)

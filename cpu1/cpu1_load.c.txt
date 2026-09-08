@@ -1,0 +1,31 @@
+Synthetic memory load for CPU1, to stand in for lwIP packet traffic while the
+board has no Ethernet link. Add both pieces to app_cpu1/src/main.c.
+
+---- 1. above main(), next to the other file-scope variables ----
+
+/* 1 MB is well past the 512 KB shared L2, so every pass evicts the cache and
+ * keeps real traffic on the DDR path - the same pressure lwIP's pbuf pool and
+ * the EMAC DMA would put there. */
+#define LOAD_WORDS (256u * 1024u)
+static volatile u32 load_buf[LOAD_WORDS];
+
+static void cpu1_load(void)
+{
+	static u32 idx = 0u, acc = 0u;
+	u32 k;
+
+	for (k = 0u; k < 4096u; k++) {
+		load_buf[idx] = acc;
+		acc += load_buf[(idx + 12345u) & (LOAD_WORDS - 1u)];
+		idx = (idx + 4099u) & (LOAD_WORDS - 1u);
+	}
+}
+
+
+---- 2. in the while (1) packet loop, next to the heartbeat ----
+
+	while (1) {
+		AMP_SYNC->cpu1_heartbeat++;
+		cpu1_load();                    /* <-- add this line */
+		if (TcpFastTmrFlag) {
+			...
