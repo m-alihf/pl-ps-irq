@@ -8,17 +8,37 @@ Tools: Vivado 2019.1 + Xilinx SDK 2019.1.
 
 ## Result
 
-Measured on hardware, 4 min 17 s of uninterrupted running with lwIP plus a 1 MB
-DDR thrash loop on CPU1, and no debugger attached:
+Measured on hardware with no debugger attached. Two loads: a 1 MB DDR thrash loop
+on CPU1, and real network traffic - 97 Mbit/s of UDP broadcast, about 8000 packets
+per second, sustained for two separate three-minute runs.
 
-| | |
-|---|---|
-| interrupts serviced | 20,560,000 |
-| interrupts missed | **0** |
-| mean period | 12499.991 ns |
-| worst period | 12512 ns (**+12 ns**) |
-| worst error, any sample | **21 ns** = 0.17 % of the period |
-| ISR execution time | ~900 ns |
+| | idle | 1 MB DDR thrash | **97 Mbit/s of real traffic** |
+|---|---|---|---|
+| interrupts missed | 0 | 0 | **0** |
+| mean period | 12499.991 ns | 12499.991 ns | 12499.991 ns |
+| worst period | 12512 ns | 12512 ns | **12701 ns** |
+| worst error, any sample | 21 ns | 21 ns | **381 ns** = 3 % of the period |
+| ISR execution time | ~940 ns | ~920 ns | **~1520 ns** |
+
+Error distribution in one second under the network load, out of 78,826 samples:
+
+| error | count | share |
+|---|---|---|
+| up to 21 ns | 74,096 | 94.0 % |
+| 24 - 45 ns | 108 | 0.14 % |
+| 48 - 93 ns | 253 | 0.32 % |
+| **96 - 189 ns** | **4,346** | **5.51 %** |
+| 192 - 381 ns | 22 | 0.028 % |
+
+The population at 96 - 189 ns is the signature of the traffic: at 8000 packets and
+80,000 interrupts per second, roughly one interrupt in eighteen collides with an
+EMAC DMA burst on the shared DDR path. Causality is unambiguous - the moment the
+flood stops the `<16`, `<32` and `<64` histogram bins empty, the worst period
+returns to 12512 ns and the ISR to 940 ns, and they all come back when it restarts.
+
+Note that the interrupt is never missed under any of these loads. `missed` only
+ever moved when a JTAG read halted the core, which shows up unmistakably as a
+multi-millisecond `max` and `isr_max`.
 
 Before the fix described below: 11,130,289 of 25,613,464 interrupts missed (43 %),
 and CPU0 never reached its first `xil_printf`.
@@ -50,7 +70,10 @@ cpu0/src/main.c           ISR, GIC setup, timing statistics, reporting
 cpu1/cpu1_changes.c.txt   edits to apply to the SDK lwIP Echo Server template
 cpu1/cpu1_load.c.txt      synthetic DDR load, stands in for packet traffic
 cpu1/reference/main.c     the CPU1 main.c as actually built and measured
+cpu1/bsp_patch_rtl8211f.txt the PHY speed-detection fix and the Ethernet notes
 tools/run_amp.tcl         XSCT script: reset, FPGA, ps7_init, download, run both
+tools/udp_flood.py        line-rate UDP broadcast, the real network load
+tools/tcp_load.py         echo-server driver, for when transmit works
 ```
 
 ## 1. Hardware (Vivado)
@@ -159,9 +182,11 @@ function and source line, which is how `StubHandler` was found.
 
 ## 6. Not yet done
 
-1. **Real TCP traffic.** The synthetic load reproduces DDR and L2 pressure but not
-   the burst pattern of packets or the EMAC DMA interrupts. Needs the board on a
-   switch with the echo server driven.
+1. **Bidirectional traffic.** The receive direction has been measured at line rate
+   with `tools/udp_flood.py`, which needs no reply from the board and so works
+   even though this board's transmit path does not reach the peer (see
+   `cpu1/bsp_patch_rtl8211f.txt`). The transmit DMA path is therefore still
+   unmeasured; receive is normally the heavier and burstier side.
 2. **Standalone boot.** Currently launched over JTAG. A `BOOT.BIN` with FSBL,
    bitstream and both ELFs would let it run without a host; `start_cpu1()` already
    does the `0xFFFFFFF0` + `sev` handoff for that case.

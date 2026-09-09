@@ -1,0 +1,132 @@
+BSP patch: RTL8211F link-speed detection
+========================================
+
+File:
+  <bsp>/ps7_cortexa9_1/libsrc/lwip211_v1_0/src/contrib/ports/xilinx/netif/
+  xemacpsif_physpeed.c
+
+Function: get_Realtek_phy_speed()
+
+Symptom
+-------
+The PHY negotiates 100 Mbit and the link LED is on, but the MAC receives
+nothing and the board never answers ARP. Reading the registers shows:
+
+  NWCFG         = 0x011F20C2   speed bit clear -> MAC left at its 10 Mbit reset default
+  GEM0_CLK_CTRL = 0x00100801   DIVISOR1 = 1 -> TX clock still at the ps7_init 1000 Mbit setting
+
+Cause
+-----
+The function ends with
+
+    XEmacPs_PhyRead(xemacpsp, phy_addr, IEEE_SPECIFIC_STATUS_REG, &status_speed);
+    if (status_speed & 0x400) { ... }
+    return XST_FAILURE;
+
+IEEE_SPECIFIC_STATUS_REG is register 0x11. That is the speed status register on
+an RTL8211E, but on an RTL8211F it reads back 0x0000, so the test fails and the
+function returns XST_FAILURE, which is 1. The caller then does
+
+    SetUpSLCRDivisors(base, 1);              -> no matching case, clock untouched
+    XEmacPs_SetOperatingSpeed(emac, 1);      -> default: return, NWCFG untouched
+
+Neither reports an error, so the MAC is silently left misconfigured.
+
+An RTL8211F keeps link status in register 0x1A of page 0xA43:
+
+  bit 2      link up
+  bit 3      duplex
+  bits [5:4] speed: 00 = 10, 01 = 100, 10 = 1000
+
+Measured on this board: 0x301E -> link up, full duplex, 100 Mbit.
+
+Patch
+-----
+Insert before the closing "return XST_FAILURE;" of get_Realtek_phy_speed():
+
+	/* An RTL8211F reports link speed in register 0x1A of page 0xA43, not in the
+	 * register 0x11 read above - that one reads back as 0x0000. Without this the
+	 * function returns XST_FAILURE, both SetUpSLCRDivisors() and
+	 * XEmacPs_SetOperatingSpeed() silently ignore that value, and the MAC is
+	 * left at its 10 Mbit reset default while the PHY runs at 100. The symptom
+	 * is a healthy link with every receive counter stuck at zero. */
+	{
+		u16_t phy_id_lo;
+
+		XEmacPs_PhyRead(xemacpsp, phy_addr, 3, &phy_id_lo);
+		if ((phy_id_lo & 0xFFFF) == 0xC916) {
+			u16_t physr;
+
+			XEmacPs_PhyWrite(xemacpsp, phy_addr, 0x1F, 0x0A43);
+			XEmacPs_PhyRead(xemacpsp, phy_addr, 0x1A, &physr);
+			XEmacPs_PhyWrite(xemacpsp, phy_addr, 0x1F, 0x0000);
+
+			if (physr & 0x0004) {           /* link up */
+				switch ((physr >> 4) & 0x3) {
+				case 0: return 10;
+				case 1: return 100;
+				case 2: return 1000;
+				default: break;
+				}
+			}
+		}
+	}
+
+After the patch
+---------------
+  NWCFG         = 0x011F20C3   100 Mbit
+  GEM0_CLK_CTRL = 0x00500801   DIVISOR1 = 5, TX clock 25 MHz
+
+and the receive path works end to end - lwIP's arp_table picks up the peer:
+
+  0x1020033C = 6401A8C0   192.168.1.100
+  0x10200344 = C9A71454   54:14:A7:C9:96:FD
+  0x1020034C = 00000002   ETHARP_STATE_STABLE
+
+Note
+----
+The patch lives in generated BSP source and is lost whenever SDK regenerates the
+board support package. Re-apply it after any BSP regeneration.
+
+Still open: transmit never reaches the peer
+------------------------------------------
+
+Board: Artemis Karia StarLite, ETH-PS port, RTL8211F-CG at MDIO address 1.
+Peer: a USB 2.0 100 Mbit adapter on the host, direct cable, static addressing
+(board 192.168.1.10, host 192.168.1.100).
+
+Verified working
+  PHY link          BMSR 0x79AD - link up, autonegotiation complete
+  PHY speed         page 0xA43 reg 0x1A = 0x301E - 100 Mbit, full duplex
+  MAC speed         NWCFG 0x011F20C3, GEM0_CLK_CTRL 0x00500801 (after the patch)
+  Receive path      MAC counts broadcast frames, and lwIP's arp_table holds the
+                    host with ETHARP_STATE_STABLE, so frames reach the stack
+  netif state       flags 0x0F = UP | BROADCAST | LINK_UP | ETHARP
+  Peer MAC          lwIP learned 54:14:A7:C9:96:FD, which is the host adapter
+  Analog transmit   autonegotiation completing proves the PHY drives the media
+
+Verified correct against the board schematic (sheets 3, 5, 15)
+  VCCO_MIO1_501 = 1.8 V, DVDDRG on the PHY = 1.8 V - levels match
+  MIO16 = GTX_CLK, MIO17..20 = TXD0..3, MIO21 = TX_EN,
+  MIO22 = RX_CLK, MIO23..26 = RXD0..3, MIO27 = RX_DV - the standard mapping
+  MIO52/53 = MDC/MDIO, and MDIO works
+  Boot straps: MIO[8] = 1 -> MIO bank 1 at 1.8 V
+
+Tried without effect
+  PHY TX delay on (page 0xD08 reg 0x11 bit 8), with and without renegotiation
+  Fast slew rate on MIO 16..27 (the PS configuration leaves all twelve on slow,
+  which every Xilinx reference design sets to fast - worth fixing regardless)
+  Promiscuous mode
+
+Inconclusive
+  BMCR bit 14 loopback on this PHY does not isolate the receive path: with it set
+  the MAC still receives the host's frames. A first reading of that test suggested
+  the RGMII transmit path was proven good; it was not - the frames counted were
+  ordinary host traffic. Repeated with promiscuous mode on and every one of the
+  fourteen receive buffers held a frame from the host, none with the board's own
+  source address, so the test says nothing either way about MAC -> PHY transmit.
+
+So the host never sees a frame from the board even though every stage that can be
+observed from software is healthy. What has not been tried: the board vendor's own
+Ethernet example, and a different peer - a switch or router rather than a
+point-to-point USB adapter.
