@@ -142,6 +142,7 @@ static void start_cpu1(void)
 int main(void)
 {
     u32 addr, last = 0u, mn, mx, ms, isr, n, nq, gn, gmx, avg_ps;
+    u32 last_pkts = 0u, last_bytes = 0u, pkts, kbytes;
     u32 hist[HIST_BINS];
     s32 res;
     s64 avg_kt;
@@ -162,6 +163,9 @@ int main(void)
     AMP_SYNC->cpu0_ready     = 0u;
     AMP_SYNC->cpu1_ready     = 0u;
     AMP_SYNC->cpu1_heartbeat = 0u;
+    AMP_SYNC->cpu1_pkts      = 0u;
+    AMP_SYNC->cpu1_bytes     = 0u;
+    AMP_SYNC->cpu1_sum       = 0u;
 
     /* global timer: stop, zero, start */
     Xil_Out32(GT_CTRL, 0u);
@@ -218,13 +222,18 @@ int main(void)
         avg_kt = (s64)GT_EXPECTED * 1000 + ((s64)res * 1000) / (s64)nq; /* ticks x1000 */
         avg_ps = (u32)((avg_kt * 1000000000ll) / (s64)COUNTS_PER_SECOND); /* ns x1000  */
 
+        pkts   = AMP_SYNC->cpu1_pkts  - last_pkts;
+        kbytes = (AMP_SYNC->cpu1_bytes - last_bytes) / 1024u;
+        last_pkts  = AMP_SYNC->cpu1_pkts;
+        last_bytes = AMP_SYNC->cpu1_bytes;
+
         st.gate = 1u;   /* everything printed below is excluded from the stats */
 
         xil_printf("n=%u missed=%u avg=%u.%03u ns  QUIET n=%u min/max=%u/%u "
-                   "(%u/%u ns)  PRINT n=%u max=%u  isr_max=%u ns  hb=%u\r\n",
+                   "(%u/%u ns)  PRINT n=%u max=%u  isr_max=%u ns  app=%u pkt %u KB\r\n",
                    n, ms, avg_ps / 1000u, avg_ps % 1000u, nq, mn, mx,
                    ticks_to_ns(mn), ticks_to_ns(mx), gn, gmx,
-                   ticks_to_ns(isr), AMP_SYNC->cpu1_heartbeat);
+                   ticks_to_ns(isr), pkts, kbytes);
 
         xil_printf("  |err| quiet: ");
         for (i = 0; i < HIST_BINS; i++) {

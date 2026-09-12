@@ -40,6 +40,59 @@ drivers do on the ICDICFR word covering IRQs 48..63 cannot race.
 			...
 
 
+---- 5. application-layer work on every received packet ----
+
+Without a bound PCB the flood packets are dropped inside udp_input(): the EMAC
+DMA, the interrupt and the pbuf allocation all happen, but lwIP never touches
+the payload. Binding a PCB on port 7 makes each frame cost a memcpy into DDR
+and a full pass back over 1472 bytes, so the application layer does real
+memory work instead of the stack throwing the packet away.
+
+Add to the includes:
+
+#include "lwip/udp.h"
+#include "lwip/pbuf.h"
+
+Add above main():
+
+	static u8_t udp_work_buf[2048];
+
+	static void udp_work(void *arg, struct udp_pcb *pcb, struct pbuf *p,
+	                     const ip_addr_t *addr, u16_t port)
+	{
+		u32 sum = 0u;
+		u16_t n, i;
+
+		(void)arg; (void)pcb; (void)addr; (void)port;
+
+		n = pbuf_copy_partial(p, udp_work_buf, sizeof(udp_work_buf), 0);
+		for (i = 0; i < n; i++) {
+			sum += udp_work_buf[i];
+		}
+
+		AMP_SYNC->cpu1_pkts++;
+		AMP_SYNC->cpu1_bytes += n;
+		AMP_SYNC->cpu1_sum += sum;
+
+		pbuf_free(p);
+	}
+
+cpu1_sum is never read for its value - it only stops the compiler from
+deleting the read-back loop. cpu1_pkts and cpu1_bytes are what CPU0 prints,
+so the work can be shown to be happening rather than assumed.
+
+Register it right after step 3, before netif_set_up():
+
+	{
+		struct udp_pcb *work_pcb = udp_new();
+
+		if (work_pcb != NULL) {
+			udp_bind(work_pcb, IP_ANY_TYPE, 7);
+			udp_recv(work_pcb, udp_work, NULL);
+		}
+	}
+
+
 ---- notes ----
 
 * If you already added the earlier version of these edits, rename

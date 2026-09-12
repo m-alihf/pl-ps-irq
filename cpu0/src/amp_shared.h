@@ -41,6 +41,9 @@ typedef struct {
     volatile u32 cpu0_ready;
     volatile u32 cpu1_ready;
     volatile u32 cpu1_heartbeat;
+    volatile u32 cpu1_pkts;     /* packets delivered to the UDP application */
+    volatile u32 cpu1_bytes;    /* payload bytes copied out of the pbufs */
+    volatile u32 cpu1_sum;      /* keeps the read-back from being optimised away */
 } amp_sync_t;
 
 #define AMP_SYNC ((amp_sync_t *)SHARED_BASE)

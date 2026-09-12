@@ -113,6 +113,15 @@ Verified correct against the board schematic (sheets 3, 5, 15)
   Boot straps: MIO[8] = 1 -> MIO bank 1 at 1.8 V
 
 Tried without effect
+  Cache coherency. Xil_DCacheFlushRange() in the standalone BSP wraps its L2
+  clean in #ifndef USE_AMP, so on CPU1 only L1 is flushed and a frame handed to
+  the EMAC can still be dirty in L2 while the DMA reads stale DDR. On Zynq the
+  GEM reaches DDR through the central interconnect and does not snoop L2, so
+  this looked like an exact fit for "transmit broken, receive fine". It is a
+  real hazard for any DMA driven from an AMP slave core and worth knowing about,
+  but it is not this bug: disabling L2 entirely changed nothing, and neither did
+  marking every buffer lwIP owns (.bss, heap, stack above 0x10100000)
+  non-cacheable so no cache sits between the CPU and DDR at all.
   PHY TX delay on (page 0xD08 reg 0x11 bit 8), with and without renegotiation
   Fast slew rate on MIO 16..27 (the PS configuration leaves all twelve on slow,
   which every Xilinx reference design sets to fast - worth fixing regardless)

@@ -33,6 +33,8 @@
 #include "netif/xadapter.h"
 #include "xil_mmu.h"
 #include "amp_shared.h"
+#include "lwip/udp.h"
+#include "lwip/pbuf.h"
 #include "platform.h"
 #include "platform_config.h"
 #if defined (__arm__) || defined(__aarch64__)
@@ -126,6 +128,7 @@ int IicPhyReset(void);
 #define LOAD_WORDS (256u * 1024u)
 static volatile u32 load_buf[LOAD_WORDS];
 
+static void cpu1_load(void) __attribute__((unused));
 static void cpu1_load(void)
 {
 	static u32 idx = 0u, acc = 0u;
@@ -136,6 +139,32 @@ static void cpu1_load(void)
 		acc += load_buf[(idx + 12345u) & (LOAD_WORDS - 1u)];
 		idx = (idx + 4099u) & (LOAD_WORDS - 1u);
 	}
+}
+
+/* Real work for the application layer. Without a bound PCB the flood packets
+ * are dropped inside udp_input and lwIP never touches the payload; with this
+ * they are delivered, copied out of the pbuf into DDR and read back, so every
+ * frame costs a memcpy and a pass over 1472 bytes on top of the driver work. */
+static u8_t udp_work_buf[2048];
+
+static void udp_work(void *arg, struct udp_pcb *pcb, struct pbuf *p,
+                     const ip_addr_t *addr, u16_t port)
+{
+        u32 sum = 0u;
+        u16_t n, i;
+
+        (void)arg; (void)pcb; (void)addr; (void)port;
+
+        n = pbuf_copy_partial(p, udp_work_buf, sizeof(udp_work_buf), 0);
+        for (i = 0; i < n; i++) {
+                sum += udp_work_buf[i];
+        }
+
+        AMP_SYNC->cpu1_pkts++;
+        AMP_SYNC->cpu1_bytes += n;
+        AMP_SYNC->cpu1_sum += sum;
+
+        pbuf_free(p);
 }
 
 int main()
@@ -220,6 +249,15 @@ int main()
 	/* now enable interrupts */
 	platform_enable_interrupts();
 	AMP_SYNC->cpu1_ready = AMP_MAGIC;
+
+	{
+		struct udp_pcb *work_pcb = udp_new();
+
+		if (work_pcb != NULL) {
+			udp_bind(work_pcb, IP_ANY_TYPE, 7);
+			udp_recv(work_pcb, udp_work, NULL);
+		}
+	}
 	/* specify that the network if is up */
 	netif_set_up(echo_netif);
 
@@ -259,7 +297,7 @@ int main()
 	/* receive and process packets */
 	while (1) {
 		AMP_SYNC->cpu1_heartbeat++;
-		cpu1_load();
+		/* cpu1_load(); */   /* synthetic load off: measuring real TCP traffic */
 		if (TcpFastTmrFlag) {
 			tcp_fasttmr();
 			TcpFastTmrFlag = 0;
