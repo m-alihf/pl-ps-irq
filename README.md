@@ -101,6 +101,8 @@ cpu1/bsp_patch_rtl8211f.txt the PHY speed-detection fix and the Ethernet notes
 tools/run_amp.tcl         XSCT script: reset, FPGA, ps7_init, download, run both
 tools/udp_flood.py        line-rate UDP broadcast, the real network load
 tools/tcp_load.py         echo-server driver, for when transmit works
+boot/boot.bif             partition list for bootgen, with the ordering rule
+boot/build_fsbl.sh        builds the FSBL outside Eclipse, when SDK holds the workspace
 ```
 
 ## 1. Hardware (Vivado)
@@ -212,7 +214,70 @@ Useful live reads (CPU0 target, no halt needed):
 `arm-none-eabi-addr2line -f -e app_cpu0.elf <pc>` turns a halted PC into a
 function and source line, which is how `StubHandler` was found.
 
-## 6. Not yet done
+## 6. Standalone boot
+
+`BOOT.BIN` holds the FSBL, the bitstream and both applications, so the board runs
+with nothing attached but power.
+
+```
+bootgen -image boot.bif -arch zynq -o BOOT.BIN -w on
+```
+
+Run it from the SDK workspace root; `boot/boot.bif` in this repo is the partition
+list, and the comment at the top of it is the part worth reading. FSBL hands off to
+the **first** PS partition, not the last - `image_mover.c` guards the assignment
+with `ExecAddrFlag` and says so in a comment - so `app_cpu0.elf` has to be listed
+before `app_cpu1.elf`. Both end up in DDR; only CPU0 is started, and it releases
+CPU1 through `0xFFFFFFF0` + `sev` exactly as it does under the debugger. The two
+entry points already match the addresses the code uses:
+
+| | entry | linker base |
+|---|---|---|
+| app_cpu0.elf | `0x00100000` | `0x00100000` |
+| app_cpu1.elf | `0x10000000` | `CPU1_DDR_BASE` |
+
+### Building the FSBL
+
+An Empty Application will not do - the FSBL needs the `xilffs` and `xilrsa`
+libraries in its BSP, which the `Zynq FSBL` template pulls in. From xsct:
+
+```tcl
+setws F:/vivado_projects/pl_irq/pl_irq.sdk
+createapp -name fsbl -app {Zynq FSBL} -proc ps7_cortexa9_0           -hwproject design_1_wrapper_hw_platform_0 -os standalone
+```
+
+`projects -build` fails with *Invalid Workspace* whenever the SDK GUI has the
+workspace open - the headless builder wants the same lock. Either close SDK and
+build there, or run `boot/build_fsbl.sh`, which compiles the BSP with its own
+Makefile and links the FSBL directly, no Eclipse involved. It builds with `-O2`
+and `-DFSBL_DEBUG_INFO`, so the FSBL reports each partition as it loads it over
+the same UART - worth having the first time, since it is the only visibility into
+a boot that fails before CPU0 ever prints.
+
+`ps7_init.c` is a linked resource from the hardware platform project, not a file
+in `fsbl/src`, so anything building outside Eclipse has to compile it explicitly.
+
+### Boot mode - Artemis StarLite
+
+Header **J1**, four pins, pin 1 at the top. Pin 1 is the MIO5 net pulled up by
+R57, pin 2 is ground, pin 3 is the MIO4 net pulled down by R60, pin 4 is 3V3.
+
+| jumper on | MIO[5] | MIO[4] | boots from |
+|---|---|---|---|
+| pins 1-2 | 0 | 0 | JTAG |
+| pins 2-3 | 1 | 0 | QSPI flash |
+| pins 3-4 | 1 | 1 | microSD |
+
+With no jumper at all the pull resistors give QSPI. Both targets are fitted: a
+16 MB Winbond `W25Q128JVSIQ` at U7, and a microSD socket at J3 behind a level
+shifter. The image is 4.1 MB, so either holds it.
+
+- **microSD**: FAT32, `BOOT.BIN` in the root directory, jumper on pins 3-4.
+- **QSPI**: `program_flash -f BOOT.BIN -fsbl fsbl.elf -flash_type qspi_single
+  -blank_check -verify -cable type xilinx_tcf url TCP:127.0.0.1:3121`,
+  jumper on pins 2-3. This erases whatever the vendor shipped in that flash.
+
+## 7. Not yet done
 
 1. **Bidirectional traffic.** The receive direction has been measured at line rate
    with `tools/udp_flood.py`, all the way up through the application layer, which
@@ -220,9 +285,6 @@ function and source line, which is how `StubHandler` was found.
    path does not reach the peer (see `cpu1/bsp_patch_rtl8211f.txt`). The transmit
    DMA path is therefore still unmeasured; receive is normally the heavier and
    burstier side. `tools/tcp_load.py` drives both directions once transmit works.
-2. **Standalone boot.** Currently launched over JTAG. A `BOOT.BIN` with FSBL,
-   bitstream and both ELFs would let it run without a host; `start_cpu1()` already
-   does the `0xFFFFFFF0` + `sev` handoff for that case.
-3. **`isr_max` ~900 ns** is almost entirely the three AXI-GP register reads. If the
+2. **`isr_max` ~900 ns** is almost entirely the three AXI-GP register reads. If the
    ISR ever needs to do more work, have the PL push the sample into the shared DDR
    window instead of being read over AXI.

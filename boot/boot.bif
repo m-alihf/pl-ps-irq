@@ -1,0 +1,23 @@
+// Boot image for the AMP pair. Run bootgen from the SDK workspace root:
+//
+//     bootgen -image boot.bif -arch zynq -o BOOT.BIN -w on
+//
+// Partition order matters. FSBL hands off to the FIRST PS partition it finds -
+// image_mover.c guards the assignment with ExecAddrFlag, and the comment there
+// says so outright ("Load execution address of first PS partition"). So
+// app_cpu0 must come before app_cpu1: both are loaded into DDR, but only
+// app_cpu0 is jumped to. It then releases CPU1 the usual way, by writing
+// 0x10000000 to 0xFFFFFFF0 and issuing sev - which is exactly what
+// start_cpu1() in cpu0/src/main.c already does.
+//
+// Putting app_cpu1 first would boot CPU1's lwIP on CPU0 and nothing else would
+// ever run. The bitstream is a PL partition and does not affect the choice, but
+// it has to be loaded before app_cpu0 starts talking to the PL over AXI.
+
+the_ROM_image:
+{
+	[bootloader]fsbl/Release/fsbl.elf
+	design_1_wrapper_hw_platform_0/design_1_wrapper.bit
+	app_cpu0/Debug/app_cpu0.elf
+	app_cpu1/Debug/app_cpu1.elf
+}
