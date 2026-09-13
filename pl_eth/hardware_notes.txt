@@ -1,0 +1,82 @@
+PL Ethernet port (ETH-PL) - everything read off the board schematic
+===================================================================
+
+Board: Artemis StarLite, sheets 3, 5, 6, 15, 16 of the schematic.
+
+Why this port exists as an option
+---------------------------------
+The board carries two identical RTL8211F-CG gigabit PHYs on different sides of
+the chip:
+
+  sheet 15   GPHY(PS)        -> MIO 16..27, driven by GEM0      MDIO address 1
+  sheet 16   GIGA ETH(PL)    -> PL fabric pins, bank 34         MDIO address 2
+                                (strapped 010 on RXD3/RXC/RXCTL)
+
+Only GEM0 is enabled in the current block design:
+
+  PCW_ENET0_PERIPHERAL_ENABLE = 1    MIO 16 .. 27
+  PCW_ENET1_PERIPHERAL_ENABLE = 0
+  PCW_EN_EMIO_ENET1           = 0
+
+So the second port is wired but unconfigured. Reaching it means routing GEM1 out
+through EMIO - which presents GMII, not RGMII - and putting Xilinx's
+gmii_to_rgmii converter in the PL between the two.
+
+Pin map
+-------
+All fourteen signals are in bank 34. Pin numbers resolved from Vivado's own
+package database for xc7z020clg400-2, not read off the drawing - the visual
+reading was off by one row.
+
+  signal            schematic IO name        pin
+  PL_GPHY_MDC       IO_L11P_T1_SRCC_34       U14
+  PL_GPHY_MDIO      IO_L11N_T1_SRCC_34       U15
+  PL_GPHY_RX_CLK    IO_L13P_T2_MRCC_34       N18     clock-capable, required
+  PL_GPHY_RX_DV     IO_L13N_T2_MRCC_34       P19
+  PL_GPHY_TXD0      IO_L14P_T2_SRCC_34       N20
+  PL_GPHY_TXD1      IO_L14N_T2_SRCC_34       P20
+  PL_GPHY_TXD2      IO_L15P_T2_DQS_34        T20
+  PL_GPHY_TXD3      IO_L15N_T2_DQS_34        U20
+  PL_GPHY_GTX_CLK   IO_L16P_T2_34            V20
+  PL_GPHY_TX_EN     IO_L16N_T2_34            W20
+  PL_GPHY_RXD0      IO_L17P_T2_34            Y18
+  PL_GPHY_RXD1      IO_L17N_T2_34            Y19
+  PL_GPHY_RXD2      IO_L18P_T2_34            V16
+  PL_GPHY_RXD3      IO_L18N_T2_34            W16
+
+RX_CLK landing on an MRCC pin is not luck, it is what makes the port usable at
+all - the RGMII receive clock has to reach a clock buffer.
+
+I/O voltage - and it is not the same as the PS port
+---------------------------------------------------
+  VCCO_34          R24 (0R) fitted, R26 and R27 marked NC   ->  3.3 V
+  PHY DVDDRG       R145 (0R) fitted, R146 marked NC         ->  3.3 V
+
+Both sides 3.3 V, so the I/O standard is LVCMOS33. Note the PS port is 1.8 V on
+both sides; do not copy its constraints.
+
+Nothing else is needed
+----------------------
+  PHYRSTB (pin 12)   R151 4.7K to 3V3 + C130 10uF to ground - an RC power-on
+                     reset that releases by itself. No FPGA pin.
+  INTB/PMEB (pin 31) not connected.
+
+So the port costs exactly fourteen pins.
+
+Why we are looking at this port at all
+--------------------------------------
+Measured on the PS port with the link up at 100 Mbit full duplex, statistics
+cleared first (they are clear-on-read - reading them is what resets them):
+
+  receive    49,022 frames, 74,383,408 bytes, and zero FCS, symbol, alignment,
+             overrun or resource errors. 976 of them reached the application on
+             CPU1, so the path is good all the way up the stack.
+  transmit   2,784 frames, 178,756 bytes - 64 bytes each, the size of an ARP
+             reply - with zero underruns, collisions or carrier sense errors.
+
+And the host's ARP table for the board stayed empty the whole time.
+
+So the MAC builds the frame, hands it out, and reports no error; the host never
+sees it. The break is past the MAC pins, and the receive half of that same RGMII
+bus is carrying 74 MB without a single error. That is what this port replaces:
+different pins, different PHY, different magnetics, different jack.
