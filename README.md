@@ -151,6 +151,26 @@ needs no acknowledge write back to the PL.
   Add `-DNDEBUG` if the board has no Ethernet link: the PHY then reports speed 0
   and `XEmacPs_SetOperatingSpeed` hangs forever inside `Xil_Assert`.
 - BSP -> `standalone`: `stdout` = `stdin` = `none`. One UART, and CPU0 owns it.
+  Regenerating the BSP drops this every time, and CPU1 then prints straight
+  through the middle of CPU0's measurement output. Check it after every
+  regeneration - the reliable test is that `STDOUT_BASEADDRESS` is absent from
+  the generated `xparameters.h`.
+- BSP -> `lwip211`: `lwip_dhcp` = `false`, `pbuf_pool_size` = `2048`,
+  `phy_link_speed` = `CONFIG_LINKSPEED100`. DHCP has to be off: on a direct
+  cable there is no server, and the template spins in
+
+  ```c
+  dhcp_start(echo_netif);
+  dhcp_timoutcntr = 24;
+  while (((echo_netif->ip_addr.addr) == 0) && (dhcp_timoutcntr > 0))
+          xemacif_input(echo_netif);
+  ```
+
+  for 12 s - the counter drops every other 250 ms timer tick - before falling
+  back to 192.168.1.10. Ping inside that window and nothing answers, and the
+  DHCP discovers it broadcasts meanwhile show up in the transmit counters and
+  muddy any measurement. With it off the interface is created at its static
+  address and the board is answerable immediately.
 - `lscript.ld`: `ps7_ddr_0` base `0x10000000`, size `0x0F000000`.
 - Apply `cpu1/cpu1_changes.c.txt`, plus `cpu1/cpu1_load.c.txt` when testing
   without a live network.
