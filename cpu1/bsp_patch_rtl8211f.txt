@@ -235,3 +235,53 @@ the MAC believes every one of them holds a frame to send, while address and
 length are both zero. And TXQBASE moves between reads (0x10610020, 0x10610180,
 0x106101D0), which only happens when the driver's transmit error handler tears
 the ring down and rebuilds it. That is the thread to pull next.
+
+
+And then TCP: USE_AMP turns off L2 maintenance
+----------------------------------------------
+
+The reply was being sent. A capture on the peer, taken once the link was finally
+stable, shows one frame arriving from the board after every single ARP request:
+
+  ff:ff:ff:ff:ff:ff <- d4:93:90:3f:72:a3  et=0806 len=42   the request
+  00:00:00:00:00:00 <- 00:00:00:00:00:00  et=0000 len=60   the board's reply
+
+Right length - 42 padded to the 60 byte minimum - right timing, one per request,
+and every byte zero. Destination zero, source zero, ethertype zero.
+
+xil_cache.c wraps every L2 operation in #ifndef USE_AMP, and CPU1's BSP is built
+with USE_AMP=1. So Xil_DCacheFlushRange() cleans L1 and stops. lwIP writes the
+frame, the line stays dirty in L2, the EMAC DMA reads DDR underneath it and
+transmits what is actually there: zeros. The FCS is computed over that, so it is
+a valid frame and the peer does not even count it as an error - it drops an
+unknown ethertype and says nothing. Receive is untouched, which is why the link
+looked half working for so long, and why both Ethernet ports behaved identically:
+one driver, one bug.
+
+Unguarding the L2 flush made ping work on the first try.
+
+The same guard is on Xil_DCacheInvalidateRange, and that is the other half. With
+only the flush fixed, TCP connected and then stalled after about forty round
+trips and would not accept another connection - buffers the DMA had rewritten
+still held stale L2 lines, so ACKs and payload read back as garbage. Unguarding
+the invalidate as well took it from 43 round trips to 47,070.
+
+Range operations on the PL310 are safe from either core. It is the whole-cache
+ones - Xil_DCacheFlush(), Xil_L2CacheFlush() - that stall the shared path and
+must stay out of CPU1. The L2 helper functions are themselves compiled out under
+USE_AMP, so the patch writes the registers directly.
+
+Two more things were in the way, both in the stock echo example:
+
+  tcp_recved(tpcb, p->len)     only acknowledges the first buffer of a chain, so
+                               the receive window shrinks a little on every
+                               chained segment until it reaches zero
+  TCP_WND 2048                 barely more than one 1460 byte segment
+
+Fixed to p->tot_len, the whole chain echoed back with an explicit tcp_output(),
+and the window raised to 16384 in the BSP settings.
+
+Measured after all of it, from a BSP regenerated from scratch and patched only by
+apply_bsp_patch.py:
+
+  48,199,680 bytes echoed in 20 s, 19.28 Mbit/s each way, 47,070 round trips

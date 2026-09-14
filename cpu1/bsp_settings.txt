@@ -1,0 +1,29 @@
+CPU1 BSP settings that the TCP result depends on
+================================================
+
+regenbsp rewrites system.mss from the SDK's own defaults, so these have to be
+put back after every regeneration. apply_bsp_patch.py handles the two source
+files; these are the .mss side and are set in the SDK's BSP settings dialog or
+by editing system.mss directly.
+
+  BEGIN OS: standalone
+    stdin  = none
+    stdout = none
+
+      CPU1 must not own a UART. The board has one, on MIO 10/11, and CPU0 is
+      using it for the measurement output. If CPU1 keeps it, lwIP's link
+      messages land in the middle of CPU0's numbers. regenbsp drops both of
+      these every time. The check that actually works is that
+      STDOUT_BASEADDRESS is absent from the generated xparameters.h - the .mss
+      can say none while xparameters still defines it.
+
+    extra_compiler_flags =
+      -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard -nostartfiles -g -Wall
+      -Wextra -DUSE_AMP=1 -DNDEBUG
+
+  BEGIN LIBRARY: lwip211
+    lwip_dhcp       = false     static 192.168.1.10, no server on the link
+    pbuf_pool_size  = 2048
+    tcp_wnd         = 16384     default 2048 is barely one segment
+    tcp_snd_buf     = 16384
+    phy_link_speed  = CONFIG_LINKSPEED100

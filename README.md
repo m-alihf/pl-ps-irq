@@ -171,9 +171,13 @@ needs no acknowledge write back to the PL.
   DHCP discovers it broadcasts meanwhile show up in the transmit counters and
   muddy any measurement. With it off the interface is created at its static
   address and the board is answerable immediately.
+  `tcp_wnd` and `tcp_snd_buf` both to `16384`; the default 2048 is barely one
+  segment and caps TCP throughput regardless of the link.
 - `lscript.ld`: `ps7_ddr_0` base `0x10000000`, size `0x0F000000`.
 - Apply `cpu1/cpu1_changes.c.txt`, plus `cpu1/cpu1_load.c.txt` when testing
   without a live network.
+- Run `python cpu1/apply_bsp_patch.py` after every BSP regeneration. Without it
+  the PHY link flaps and the MAC transmits frames of zeros - section 7.
 
 ## 3. Run
 
@@ -298,21 +302,78 @@ shifter. The image is 4.1 MB, so either holds it.
   -blank_check -verify -cable type xilinx_tcf url TCP:127.0.0.1:3121`,
   jumper on pins 2-3. This erases whatever the vendor shipped in that flash.
 
-## 7. Not yet done
+## 7. Bidirectional TCP
 
-1. **Bidirectional traffic.** The receive direction has been measured at line rate
-   with `tools/udp_flood.py`, all the way up through the application layer, which
-   needs no reply from the board. The transmit DMA path is still unmeasured under
-   load; receive is normally the heavier and burstier side, and
-   `tools/tcp_load.py` drives both directions once a peer can hear the board.
+The transmit path was the last thing to work, and it took three separate fixes.
+The board now holds a TCP echo session at **19.28 Mbit/s in each direction,
+47,070 round trips**, measured with `tools/tcp_load.py` against a BSP regenerated
+from scratch and patched only by the script below.
 
-   Transmit itself works. In one 20 s window the MAC sent 54 frames and 13,896
-   octets with no underruns, collisions or carrier sense errors, and the same
-   held after the entire path was replaced by a second port on the PL side
-   (`pl_eth/`). What is missing is a host that can receive: both Ethernet
-   adapters on the machine used here have lifetime receive counters of zero, from
-   anything at all, with two VPN packet filters bound to the interface.
-   `cpu1/bsp_patch_rtl8211f.txt` has the numbers.
+Run it on a freshly regenerated BSP, then rebuild:
+
+```
+python cpu1/apply_bsp_patch.py            # defaults to F:/vivado_projects/pl_irq/pl_irq.sdk
+```
+
+It is idempotent and it touches two files:
+
+1. **`xemacpsif_physpeed.c`** - `configure_IEEE_phy_speed()` resets the PHY every
+   time it is called, and `eth_link_detect()` calls it again as soon as it sees
+   the link drop, which is exactly what the reset caused. The link flapped
+   forever, one to two seconds per cycle. Every experiment run before this was
+   measuring the flap. The patch configures each PHY address once.
+
+2. **the RTL8211F RGMII delays**, in the same function. The driver writes Marvell
+   registers - page 2, register 21 - into a Realtek PHY, so the transmit clock
+   delay was never enabled. On the RTL8211F it is page 0xD08, register 0x11
+   bit 8 (TX) and register 0x15 bit 3 (RX), page select on register 0x1F. Read
+   back live: TX 0x0009, bit 8 clear. The writes have to come **after** the
+   reset, which restores the defaults.
+
+3. **`xil_cache.c`** - the real one. Every L2 operation in that file is wrapped in
+   `#ifndef USE_AMP`, and CPU1 is built with `USE_AMP=1`, so
+   `Xil_DCacheFlushRange()` cleans L1 and stops. lwIP writes a frame, the line
+   stays dirty in L2, and the EMAC DMA reads what is actually in DDR. A capture
+   on the peer shows it plainly - one frame back from the board after every ARP
+   request, correct length, correct timing, and every byte zero:
+
+   ```
+   ff:ff:ff:ff:ff:ff <- d4:93:90:3f:72:a3  et=0806 len=42
+   00:00:00:00:00:00 <- 00:00:00:00:00:00  et=0000 len=60
+   ```
+
+   The FCS is computed over the zeros, so it is a valid frame and the peer drops
+   it as an unknown ethertype without counting an error. Receive was unaffected,
+   which is why the link looked half-working for weeks and why both Ethernet
+   ports behaved identically - one driver, one bug.
+
+   `Xil_DCacheInvalidateRange()` has the same guard and is the other half. With
+   only the flush restored, TCP connected and stalled after about forty round
+   trips: buffers the DMA had rewritten still held stale L2 lines. Restoring both
+   took it from 43 round trips to 47,070.
+
+   Range operations on the PL310 are safe from either core. The whole-cache ones
+   are not, and none are used here. The L2 helper functions are themselves
+   compiled out under `USE_AMP`, so the patch writes the registers directly.
+
+Two more, in the stock echo template, applied to `app_cpu1/src/echo.c`
+(`cpu1/reference/echo.c`): `tcp_recved(tpcb, p->len)` only acknowledges the first
+buffer of a chain, so the receive window shrinks on every chained segment until it
+reaches zero - it has to be `p->tot_len`, and the whole chain has to be echoed
+back, not just the first buffer.
+
+`cpu1/bsp_settings.txt` lists the `.mss` settings this depends on -
+`tcp_wnd` and `tcp_snd_buf` at 16384, `stdout = none`, `-DUSE_AMP=1`.
+`cpu1/bsp_patch_rtl8211f.txt` is the full investigation.
+
+## 8. Not yet done
+
+1. **`missed` under TCP load, from the serial terminal.** The number under the
+   97 Mbit/s receive flood is 0 and was taken with no debugger attached. The
+   bidirectional TCP figure has only been read back over JTAG so far, and the
+   probe dominates it: 904 missed out of 6,894,508 under load, against 405 out of
+   5,974,601 idle with the same two debugger connects. That is the measurement,
+   not the system. It needs one run read off UART0 with nothing attached.
 2. **`isr_max` ~900 ns** is almost entirely the three AXI-GP register reads. If the
    ISR ever needs to do more work, have the PL push the sample into the shared DDR
    window instead of being read over AXI.

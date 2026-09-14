@@ -105,14 +105,107 @@ NEW_TAIL = (
  "}")
 
 
+# --- second file: the L2 maintenance that USE_AMP throws away ---------------
+#
+# USE_AMP disables every L2 operation in xil_cache.c. On the core running lwIP
+# that breaks the EMAC in both directions:
+#
+#   transmit  a frame lwIP has just written stays dirty in L2 while the DMA
+#             reads DDR underneath it, so the MAC puts a correctly sized frame
+#             of zeros on the wire - with a valid FCS, so the peer does not even
+#             log an error, it just drops a frame of ethertype 0x0000
+#   receive   buffers the DMA has rewritten keep stale L2 lines, so ACKs and
+#             payload read back as garbage and TCP stalls within a few tens of
+#             kilobytes
+#
+# Range operations on the PL310 are safe from either core; it is the whole-cache
+# ones that stall the shared path and must stay out of CPU1. The L2 helpers are
+# themselves compiled out under USE_AMP, so the registers are written directly.
+
+CACHE_REL = 'app_cpu1_bsp/ps7_cortexa9_1/libsrc/standalone_v7_0/src/xil_cache.c'
+CACHE_MARKER = 'L2 maintenance restored for AMP'
+
+FLUSH_OLD = (
+ "#ifndef USE_AMP\n"
+ "\t\t\t/* Flush L2 cache line */\n"
+ "\t\t\t*L2CCOffset = LocalAddr;\n"
+ "\t\t\tXil_L2CacheSync();\n"
+ "#endif\n")
+
+FLUSH_NEW = (
+ "\t\t\t/* Flush the L2 line - L2 maintenance restored for AMP */\n"
+ "\t\t\t*L2CCOffset = LocalAddr;\n"
+ "\t\t\tXil_Out32(XPS_L2CC_BASEADDR + XPS_L2CC_CACHE_SYNC_OFFSET, 0x0U);\n")
+
+EDGE_OLD = (
+ "#ifndef USE_AMP\n"
+ "\t\t\t/* Disable Write-back and line fills */\n"
+ "\t\t\tXil_L2WriteDebugCtrl(0x3U);\n"
+ "\t\t\tXil_L2CacheFlushLine(%s);\n"
+ "\t\t\t/* Enable Write-back and line fills */\n"
+ "\t\t\tXil_L2WriteDebugCtrl(0x0U);\n"
+ "\t\t\tXil_L2CacheSync();\n"
+ "#endif\n")
+
+EDGE_NEW = (
+ "\t\t\t/* the partial line at the edge, through the registers */\n"
+ "\t\t\tXil_Out32(XPS_L2CC_BASEADDR + XPS_L2CC_DEBUG_CTRL_OFFSET, 0x3U);\n"
+ "\t\t\tXil_Out32(XPS_L2CC_BASEADDR + XPS_L2CC_CACHE_INV_CLN_PA_OFFSET, %s);\n"
+ "\t\t\tXil_Out32(XPS_L2CC_BASEADDR + XPS_L2CC_CACHE_SYNC_OFFSET, 0x0U);\n"
+ "\t\t\tXil_Out32(XPS_L2CC_BASEADDR + XPS_L2CC_DEBUG_CTRL_OFFSET, 0x0U);\n")
+
+INVAL_OLD = (
+ "#ifndef USE_AMP\n"
+ "\t\t\t/* Invalidate L2 cache line */\n"
+ "\t\t\t*L2CCOffset = tempadr;\n"
+ "\t\t\tXil_L2CacheSync();\n"
+ "#endif\n")
+
+INVAL_NEW = (
+ "\t\t\t/* Invalidate the L2 line - not optional on this core */\n"
+ "\t\t\t*L2CCOffset = tempadr;\n"
+ "\t\t\tXil_Out32(XPS_L2CC_BASEADDR + XPS_L2CC_CACHE_SYNC_OFFSET, 0x0U);\n")
+
+
+def patch_cache():
+    src = pathlib.Path(WS) / CACHE_REL
+    if not src.exists():
+        print("not found: %s" % src)
+        return 1
+    text = src.read_text(encoding='utf-8', newline='')
+    if CACHE_MARKER in text:
+        print("xil_cache.c already patched")
+        return 0
+    nl = '\r\n' if '\r\n' in text else '\n'
+    E = lambda s: s.replace('\n', nl)
+    done = 0
+    if E(FLUSH_OLD) in text:
+        text = text.replace(E(FLUSH_OLD), E(FLUSH_NEW), 1)
+        done += 1
+    for var in ("tempadr", "tempend"):
+        o = E(EDGE_OLD % var)
+        if o in text:
+            text = text.replace(o, E(EDGE_NEW % var), 1)
+            done += 1
+    if E(INVAL_OLD) in text:
+        text = text.replace(E(INVAL_OLD), E(INVAL_NEW), 1)
+        done += 1
+    if done != 4:
+        print("xil_cache.c: matched %d of 4 blocks - not the expected source" % done)
+        return 1
+    src.write_text(text, encoding='utf-8', newline='')
+    print("patched %s (4 L2 blocks)" % src)
+    return 0
+
+
 def main():
     if not SRC.exists():
         print("not found: %s" % SRC)
         return 1
     text = SRC.read_text(encoding='utf-8', newline='')
     if MARKER in text:
-        print("already patched")
-        return 0
+        print("physpeed already patched")
+        return patch_cache()
     nl = '\r\n' if '\r\n' in text else '\n'
     for old, new, what in ((OLD_HEAD, NEW_HEAD, 'head'), (OLD_TAIL, NEW_TAIL, 'tail')):
         o = old.replace('\n', nl)
@@ -122,7 +215,7 @@ def main():
         text = text.replace(o, new.replace('\n', nl), 1)
     SRC.write_text(text, encoding='utf-8', newline='')
     print("patched %s" % SRC)
-    return 0
+    return patch_cache()
 
 
 if __name__ == '__main__':
