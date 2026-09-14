@@ -186,3 +186,52 @@ The test that settles it needs no board at all: put the host's Ethernet on a
 router and see whether it picks up an address. If it stays on 169.254.x.x, the
 receive path on this machine is broken and no amount of work on the board will
 change it - start by disabling those two VPN filters.
+
+
+The link was never failing - we were resetting it
+-------------------------------------------------
+
+configure_IEEE_phy_speed() ends by writing BMCR with IEEE_CTRL_RESET_MASK. A
+reset drops the link. eth_link_detect() runs once a second, sees the link down,
+walks the state machine back round to NEGOTIATING and calls straight back into
+the same function, which resets the PHY again. The link never gets to stay up.
+
+Proof, with nothing else changed - halt the core running lwIP and watch the peer:
+
+  lwIP running    .U...U..U...UU..U......U.
+  CPU1 halted     UUUUUUUUUUUUUUUUUUUUUUUUUUUU    100 Mbit, rock steady
+
+That is why every cable and both Ethernet ports looked intermittent. It was the
+same driver in both cases.
+
+apply_bsp_patch.py makes the function run once per PHY address and skip the
+reset afterwards. With it in place the link stays up and eth_link_status finally
+reaches ETH_LINK_UP instead of cycling through NEGOTIATING forever.
+
+The same patch also fixes the RGMII delay. The stock code reaches for Marvell's
+registers - page 2, register 21, bits 5:4 - which on an RTL8211F are not the
+delay control at all, so the transmit delay is never enabled. Read directly on
+this board, page 0xD08 gives 0x0009 for transmit with bit 8 clear and 0x0019 for
+receive with bit 3 set: exactly the asymmetry the symptoms showed. The delays
+have to be written after the reset, because the reset restores the defaults.
+
+Where it stands
+---------------
+
+Fixed and measured: the link is stable, and lwIP is healthy in every direction
+that can be observed from the board. It receives at line rate - a 5 s flood put
+41,301 frames into the MAC and 2,377 of them through to the application - and it
+processes ARP: its own cache holds the host,
+
+  arp_table[0]  ipaddr 0x6401A8C0 = 192.168.1.100,  ethaddr D4:93:90:3F:...
+
+which is the host's real MAC, so the request arrived, was parsed, and was
+understood as being for us.
+
+Still open: the reply never leaves. Over a window covering four pings the MAC
+counted 14 frames received and 0 transmitted. The transmit descriptor ring looks
+wrong - all 32 descriptors read status 0x00000000, so the Used bit is clear and
+the MAC believes every one of them holds a frame to send, while address and
+length are both zero. And TXQBASE moves between reads (0x10610020, 0x10610180,
+0x106101D0), which only happens when the driver's transmit error handler tears
+the ring down and rebuilds it. That is the thread to pull next.
