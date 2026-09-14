@@ -136,6 +136,53 @@ Inconclusive
   source address, so the test says nothing either way about MAC -> PHY transmit.
 
 So the host never sees a frame from the board even though every stage that can be
-observed from software is healthy. What has not been tried: the board vendor's own
-Ethernet example, and a different peer - a switch or router rather than a
-point-to-point USB adapter.
+observed from software is healthy.
+
+
+The measurement that changed the answer
+---------------------------------------
+
+The GEM statistics registers are cleared by reading them. Every earlier reading
+of them was therefore a delta since the last read, not a total, which is what
+made them look inconsistent. Clearing them first and then measuring one window
+gives a clean picture. Over the same 20 seconds, with the link up at 100 Mbit:
+
+  board transmitted     54 frames, 13,896 octets, no underruns, no collisions,
+                        no carrier sense errors
+  board received        19 frames, 6,292 octets, no FCS, symbol, alignment,
+                        overrun or resource errors
+  host received         0 bytes, 0 packets, 0 errors
+  host transmitted      5,866 bytes
+
+Then the whole transmit path was replaced: GEM1 brought out through EMIO to the
+second PHY on the PL side of the board - different pins, different bank,
+different I/O voltage, different PHY chip, different jack (see ../pl_eth). It
+came up, the driver found the PHY, frames went out, and the host still saw
+nothing. Two independent paths cannot fail the same way for the same reason.
+
+What the host's own counters say
+--------------------------------
+
+Both Ethernet adapters on this laptop have lifetime receive counters of zero:
+
+  USB2.0 Ethernet Adapter               RxBytes 0        TxBytes 13,248
+  Realtek PCIe GbE Family Controller    RxBytes 0        TxBytes 217,126
+  Intel Wi-Fi 6E AX211                  RxBytes 56,865,439
+
+Not zero for this window - zero since the interface came up, from anything at
+all. The Wi-Fi figure is there to show the counter itself works. And four
+third-party NDIS filters are bound to the Ethernet interface, two of them VPN
+packet filters:
+
+  ExpressVPN Packet Filter          enabled
+  WireSock VPN Client Filter        enabled
+  VirtualBox NDIS6 Bridged          enabled
+  Npcap Packet Driver               enabled
+
+So the evidence now points away from the board. The board transmits; nothing on
+this host has ever received an Ethernet frame.
+
+The test that settles it needs no board at all: put the host's Ethernet on a
+router and see whether it picks up an address. If it stays on 169.254.x.x, the
+receive path on this machine is broken and no amount of work on the board will
+change it - start by disabling those two VPN filters.

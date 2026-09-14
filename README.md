@@ -103,6 +103,7 @@ tools/udp_flood.py        line-rate UDP broadcast, the real network load
 tools/tcp_load.py         echo-server driver, for when transmit works
 boot/boot.bif             partition list for bootgen, with the ordering rule
 boot/build_fsbl.sh        builds the FSBL outside Eclipse, when SDK holds the workspace
+pl_eth/                   a working second Ethernet port over GEM1 and the PL, parked
 ```
 
 ## 1. Hardware (Vivado)
@@ -281,10 +282,17 @@ shifter. The image is 4.1 MB, so either holds it.
 
 1. **Bidirectional traffic.** The receive direction has been measured at line rate
    with `tools/udp_flood.py`, all the way up through the application layer, which
-   needs no reply from the board and so works even though this board's transmit
-   path does not reach the peer (see `cpu1/bsp_patch_rtl8211f.txt`). The transmit
-   DMA path is therefore still unmeasured; receive is normally the heavier and
-   burstier side. `tools/tcp_load.py` drives both directions once transmit works.
+   needs no reply from the board. The transmit DMA path is still unmeasured under
+   load; receive is normally the heavier and burstier side, and
+   `tools/tcp_load.py` drives both directions once a peer can hear the board.
+
+   Transmit itself works. In one 20 s window the MAC sent 54 frames and 13,896
+   octets with no underruns, collisions or carrier sense errors, and the same
+   held after the entire path was replaced by a second port on the PL side
+   (`pl_eth/`). What is missing is a host that can receive: both Ethernet
+   adapters on the machine used here have lifetime receive counters of zero, from
+   anything at all, with two VPN packet filters bound to the interface.
+   `cpu1/bsp_patch_rtl8211f.txt` has the numbers.
 2. **`isr_max` ~900 ns** is almost entirely the three AXI-GP register reads. If the
    ISR ever needs to do more work, have the PL push the sample into the shared DDR
    window instead of being read over AXI.
