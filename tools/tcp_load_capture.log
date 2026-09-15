@@ -1,0 +1,371 @@
+﻿
+???R?z?k?B??
+Xilinx First Stage Boot Loader 
+Release 2019.1	Sep 14 2026-10:40:21
+Devcfg driver initialized 
+Silicon Version 3.1
+Boot mode is SD
+SD: rc= 0
+SD Init Done 
+Flash Base Address: 0xE0100000
+Reboot status register: 0x60400000
+Multiboot Register: 0x0000C000
+Image Start Address: 0x00000000
+Partition Header Offset:0x00000C80
+Partition Count: 4
+Partition Number: 1
+Header Dump
+Image Word Len: 0x000F6EC0
+Data Word Len: 0x000F6EC0
+Partition Word Len:0x000F6EC0
+Load Addr: 0x00000000
+Exec Addr: 0x00000000
+Partition Start: 0x000075D0
+Partition Attr: 0x00000020
+Partition Checksum Offset: 0x00000000
+Section Count: 0x00000001
+Checksum: 0xFFD13B7E
+Bitstream
+In FsblHookBeforeBitstreamDload function 
+PCAP:StatusReg = 0x40000A30
+PCAP:device ready
+PCAP:Clear done
+Level Shifter Value = 0xA 
+Devcfg Status register = 0x40000A30 
+PCAP:Fabric is Initialized done
+PCAP register dump:
+PCAP CTRL 0xF8007000: 0x4C00E07F
+PCAP LOCK 0xF8007004: 0x0000001A
+PCAP CONFIG 0xF8007008: 0x00000508
+PCAP ISR 0xF800700C: 0x0802000B
+PCAP IMR 0xF8007010: 0xFFFFFFFF
+PCAP STATUS 0xF8007014: 0x00000A30
+PCAP DMA SRC ADDR 0xF8007018: 0x00100001
+PCAP DMA DEST ADDR 0xF800701C: 0xFFFFFFFF
+PCAP DMA SRC LEN 0xF8007020: 0x000F6EC0
+PCAP DMA DEST LEN 0xF8007024: 0x000F6EC0
+PCAP ROM SHADOW CTRL 0xF8007028: 0xFFFFFFFF
+PCAP MBOOT 0xF800702C: 0x0000C000
+PCAP SW ID 0xF8007030: 0x00000000
+PCAP UNLOCK 0xF8007034: 0x757BDF0D
+PCAP MCTRL 0xF8007080: 0x30800100
+
+DMA Done ! 
+
+FPGA Done ! 
+In FsblHookAfterBitstreamDload function 
+Partition Number: 2
+Header Dump
+Image Word Len: 0x00003004
+Data Word Len: 0x00003004
+Partition Word Len:0x00003004
+Load Addr: 0x00100000
+Exec Addr: 0x00100000
+Partition Start: 0x000FE490
+Partition Attr: 0x00000010
+Partition Checksum Offset: 0x00000000
+Section Count: 0x00000001
+Checksum: 0xFFCF88F2
+Application
+Partition Number: 3
+Header Dump
+Image Word Len: 0x00007002
+Data Word Len: 0x00007002
+Partition Word Len:0x00007002
+Load Addr: 0x10000000
+Exec Addr: 0x10000000
+Partition Start: 0x001014A0
+Partition Attr: 0x00000010
+Partition Checksum Offset: 0x00000000
+Section Count: 0x00000001
+Checksum: 0xDFEE98D8
+Application
+Handoff Address: 0x00100000
+In FsblHookBeforeHandoff function 
+SUCCESSFUL_HANDOFF
+FSBL Status = 0x1
+
+CPU0 up. GT = 333333343 Hz, expected period = 4166.666 ticks = 12500 ns
+PL generator started (WITH_CPU1=1)
+n=80000 missed=0 avg=12499.982 ns  QUIET n=79999 min/max=3722/4171 (11165/12512 ns)  PRINT n=0 max=0  isr_max=1817 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20203 <2:31455 <4:25581 <8:2759 <512:1 
+n=160000 missed=0 avg=12499.988 ns  QUIET n=79104 min/max=3950/4171 (11849/12512 ns)  PRINT n=896 max=4376  isr_max=1097 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19907 <2:31276 <4:25173 <8:2747 <256:1 
+n=240000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3973/4171 (11918/12512 ns)  PRINT n=938 max=4377  isr_max=992 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20173 <2:31137 <4:25135 <8:2616 <256:1 
+n=320000 missed=0 avg=12499.991 ns  QUIET n=79069 min/max=3966/4188 (11897/12563 ns)  PRINT n=931 max=4390  isr_max=1172 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20204 <2:31309 <4:24954 <8:2599 <32:2 <256:1 
+n=400000 missed=0 avg=12499.991 ns  QUIET n=79020 min/max=3961/4171 (11882/12512 ns)  PRINT n=980 max=4408  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19881 <2:31165 <4:25380 <8:2593 <256:1 
+n=480000 missed=0 avg=12499.991 ns  QUIET n=79069 min/max=3955/4182 (11864/12545 ns)  PRINT n=931 max=4360  isr_max=1211 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20129 <2:31285 <4:25020 <8:2632 <16:1 <32:1 <256:1 
+n=560000 missed=0 avg=12499.988 ns  QUIET n=78979 min/max=3950/4193 (11849/12578 ns)  PRINT n=1021 max=4380  isr_max=1205 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20157 <2:31016 <4:25149 <8:2654 <32:2 <256:1 
+n=640000 missed=0 avg=12499.994 ns  QUIET n=79013 min/max=4073/4171 (12218/12512 ns)  PRINT n=987 max=4393  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19915 <2:31010 <4:25342 <8:2745 <128:1 
+n=720000 missed=0 avg=12499.991 ns  QUIET n=79069 min/max=3959/4171 (11876/12512 ns)  PRINT n=931 max=4390  isr_max=965 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20119 <2:31239 <4:25109 <8:2601 <256:1 
+n=800000 missed=0 avg=12499.988 ns  QUIET n=79070 min/max=3950/4171 (11849/12512 ns)  PRINT n=930 max=4383  isr_max=947 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20136 <2:31170 <4:25234 <8:2529 <256:1 
+n=880000 missed=0 avg=12499.988 ns  QUIET n=79069 min/max=3951/4171 (11852/12512 ns)  PRINT n=931 max=4387  isr_max=962 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20369 <2:31048 <4:25031 <8:2620 <256:1 
+n=960000 missed=0 avg=12499.988 ns  QUIET n=79069 min/max=3947/4171 (11840/12512 ns)  PRINT n=931 max=4364  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20231 <2:31069 <4:25160 <8:2608 <256:1 
+n=1040000 missed=0 avg=12499.991 ns  QUIET n=79069 min/max=3969/4171 (11906/12512 ns)  PRINT n=931 max=4377  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20052 <2:31194 <4:25166 <8:2656 <256:1 
+n=1120000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3965/4171 (11894/12512 ns)  PRINT n=938 max=4373  isr_max=950 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19936 <2:31427 <4:25051 <8:2647 <256:1 
+n=1200000 missed=0 avg=12499.991 ns  QUIET n=79063 min/max=3960/4171 (11879/12512 ns)  PRINT n=937 max=4398  isr_max=950 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20174 <2:31183 <4:25153 <8:2552 <256:1 
+n=1280000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3973/4171 (11918/12512 ns)  PRINT n=938 max=4395  isr_max=959 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20362 <2:31073 <4:24997 <8:2629 <256:1 
+n=1360000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3973/4171 (11918/12512 ns)  PRINT n=938 max=4393  isr_max=998 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20005 <2:31311 <4:25128 <8:2617 <256:1 
+n=1440000 missed=0 avg=12499.991 ns  QUIET n=79063 min/max=3966/4171 (11897/12512 ns)  PRINT n=937 max=4397  isr_max=983 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20195 <2:31201 <4:25072 <8:2594 <256:1 
+n=1520000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3954/4171 (11861/12512 ns)  PRINT n=938 max=4387  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19731 <2:31219 <4:25478 <8:2633 <256:1 
+n=1600000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3972/4171 (11915/12512 ns)  PRINT n=938 max=4392  isr_max=974 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20048 <2:31304 <4:25085 <8:2624 <256:1 
+n=1680000 missed=0 avg=12499.991 ns  QUIET n=79063 min/max=3972/4171 (11915/12512 ns)  PRINT n=937 max=4398  isr_max=956 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20146 <2:31386 <4:24987 <8:2543 <256:1 
+n=1760000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3972/4171 (11915/12512 ns)  PRINT n=938 max=4367  isr_max=998 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20145 <2:30867 <4:25287 <8:2762 <256:1 
+n=1840000 missed=0 avg=12499.997 ns  QUIET n=79062 min/max=4162/4172 (12485/12515 ns)  PRINT n=938 max=4407  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19940 <2:31113 <4:25306 <8:2703 
+n=1920000 missed=0 avg=12499.991 ns  QUIET n=79111 min/max=3962/4171 (11885/12512 ns)  PRINT n=889 max=4377  isr_max=965 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20077 <2:31147 <4:25325 <8:2561 <256:1 
+n=2000000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3966/4171 (11897/12512 ns)  PRINT n=938 max=4393  isr_max=947 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20143 <2:31268 <4:25075 <8:2575 <256:1 
+n=2080000 missed=0 avg=12499.991 ns  QUIET n=79063 min/max=3980/4171 (11939/12512 ns)  PRINT n=937 max=4368  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20388 <2:30928 <4:25154 <8:2592 <256:1 
+n=2160000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3959/4171 (11876/12512 ns)  PRINT n=938 max=4369  isr_max=947 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20248 <2:31135 <4:25034 <8:2644 <256:1 
+n=2240000 missed=0 avg=12499.988 ns  QUIET n=79062 min/max=3947/4171 (11840/12512 ns)  PRINT n=938 max=4408  isr_max=947 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20237 <2:31359 <4:24868 <8:2597 <256:1 
+n=2320000 missed=0 avg=12499.991 ns  QUIET n=79063 min/max=3968/4171 (11903/12512 ns)  PRINT n=937 max=4360  isr_max=1001 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20253 <2:31407 <4:24862 <8:2540 <256:1 
+n=2400000 missed=0 avg=12499.988 ns  QUIET n=79055 min/max=3952/4173 (11855/12518 ns)  PRINT n=945 max=4375  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20230 <2:31158 <4:24991 <8:2675 <256:1 
+n=2480000 missed=0 avg=12499.997 ns  QUIET n=79062 min/max=4116/4171 (12347/12512 ns)  PRINT n=938 max=4395  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20214 <2:31202 <4:25088 <8:2557 <64:1 
+n=2560000 missed=0 avg=12499.991 ns  QUIET n=79069 min/max=3961/4171 (11882/12512 ns)  PRINT n=931 max=4395  isr_max=953 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20061 <2:31192 <4:25172 <8:2643 <256:1 
+n=2640000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3962/4171 (11885/12512 ns)  PRINT n=938 max=4395  isr_max=974 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19959 <2:31010 <4:25391 <8:2701 <256:1 
+n=2720000 missed=0 avg=12499.991 ns  QUIET n=79063 min/max=3977/4171 (11930/12512 ns)  PRINT n=937 max=4409  isr_max=947 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20193 <2:30980 <4:25318 <8:2571 <256:1 
+n=2800000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3974/4171 (11921/12512 ns)  PRINT n=938 max=4395  isr_max=995 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19785 <2:31216 <4:25396 <8:2664 <256:1 
+n=2880000 missed=0 avg=12499.988 ns  QUIET n=79062 min/max=3948/4171 (11843/12512 ns)  PRINT n=938 max=4360  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20217 <2:31306 <4:24966 <8:2572 <256:1 
+n=2960000 missed=0 avg=12499.991 ns  QUIET n=79063 min/max=3969/4193 (11906/12578 ns)  PRINT n=937 max=4390  isr_max=1250 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20189 <2:31246 <4:25033 <8:2569 <16:8 <32:17 <256:1 
+n=3040000 missed=0 avg=12499.991 ns  QUIET n=78965 min/max=3969/4199 (11906/12596 ns)  PRINT n=1035 max=4391  isr_max=1241 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20094 <2:31338 <4:24957 <8:2543 <16:2 <32:29 <64:1 <256:1 
+n=3120000 missed=0 avg=12499.991 ns  QUIET n=78917 min/max=3977/4207 (11930/12620 ns)  PRINT n=1083 max=4363  isr_max=1292 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17626 <2:27357 <4:22400 <8:3217 <16:1655 <32:6462 <64:199 <256:1 
+n=3200000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3977/4207 (11930/12620 ns)  PRINT n=1132 max=4393  isr_max=1286 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17282 <2:26991 <4:22133 <8:3141 <16:1822 <32:7237 <64:261 <256:1 
+n=3280000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3989/4206 (11966/12617 ns)  PRINT n=1132 max=4405  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17331 <2:27243 <4:22349 <8:3170 <16:1700 <32:6858 <64:216 <256:1 
+n=3360000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3903/4208 (11708/12623 ns)  PRINT n=1132 max=4357  isr_max=1286 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17342 <2:27346 <4:22250 <8:3237 <16:1763 <32:6723 <64:206 <512:1 
+n=3440000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3964/4209 (11891/12626 ns)  PRINT n=1132 max=4390  isr_max=1286 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17202 <2:27079 <4:21869 <8:3124 <16:1935 <32:7437 <64:221 <256:1 
+n=3520000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3973/4209 (11918/12626 ns)  PRINT n=1132 max=4395  isr_max=1283 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17470 <2:27432 <4:22123 <8:3178 <16:1721 <32:6729 <64:214 <256:1 
+n=3600000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3952/4208 (11855/12623 ns)  PRINT n=1132 max=4395  isr_max=1298 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17087 <2:27217 <4:22293 <8:3247 <16:1749 <32:7057 <64:217 <256:1 
+n=3680000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3984/4207 (11951/12620 ns)  PRINT n=1132 max=4388  isr_max=1304 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17235 <2:27106 <4:22166 <8:3202 <16:1873 <32:7071 <64:214 <256:1 
+n=3760000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3982/4208 (11945/12623 ns)  PRINT n=1132 max=4386  isr_max=1343 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17381 <2:27193 <4:22454 <8:3165 <16:1690 <32:6785 <64:199 <256:1 
+n=3840000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3965/4207 (11894/12620 ns)  PRINT n=1132 max=4406  isr_max=1310 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17082 <2:27485 <4:22136 <8:3181 <16:1746 <32:7064 <64:173 <256:1 
+n=3920000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3932/4207 (11795/12620 ns)  PRINT n=1132 max=4378  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17282 <2:27149 <4:22062 <8:3337 <16:1799 <32:7045 <64:193 <256:1 
+n=4000000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3968/4207 (11903/12620 ns)  PRINT n=1132 max=4388  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17257 <2:26998 <4:22424 <8:3283 <16:1778 <32:6925 <64:202 <256:1 
+n=4080000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3948/4206 (11843/12617 ns)  PRINT n=1132 max=4370  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17116 <2:27452 <4:22205 <8:3200 <16:1702 <32:6974 <64:218 <256:1 
+n=4160000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3966/4205 (11897/12614 ns)  PRINT n=1132 max=4389  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17423 <2:27054 <4:22441 <8:3211 <16:1764 <32:6766 <64:208 <256:1 
+n=4240000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3978/4206 (11933/12617 ns)  PRINT n=1132 max=4393  isr_max=1307 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17112 <2:27354 <4:22243 <8:3289 <16:1773 <32:6899 <64:197 <256:1 
+n=4320000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3969/4208 (11906/12623 ns)  PRINT n=1132 max=4393  isr_max=1298 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17191 <2:27005 <4:21794 <8:3284 <16:1878 <32:7525 <64:190 <256:1 
+n=4400000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3961/4206 (11882/12617 ns)  PRINT n=1132 max=4409  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17244 <2:27548 <4:21830 <8:3242 <16:1812 <32:6963 <64:228 <256:1 
+n=4480000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3935/4206 (11804/12617 ns)  PRINT n=1132 max=4371  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17420 <2:27382 <4:22088 <8:3152 <16:1762 <32:6846 <64:217 <256:1 
+n=4560000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3922/4208 (11765/12623 ns)  PRINT n=1132 max=4362  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17310 <2:27227 <4:22152 <8:3174 <16:1769 <32:7010 <64:225 <256:1 
+n=4640000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3965/4208 (11894/12623 ns)  PRINT n=1132 max=4403  isr_max=1277 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17372 <2:27241 <4:22250 <8:3201 <16:1728 <32:6876 <64:199 <256:1 
+n=4720000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3968/4210 (11903/12629 ns)  PRINT n=1132 max=4392  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17313 <2:27232 <4:22207 <8:3080 <16:1780 <32:7063 <64:192 <256:1 
+n=4800000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3974/4207 (11921/12620 ns)  PRINT n=1132 max=4389  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17278 <2:27736 <4:22404 <8:3070 <16:1644 <32:6556 <64:179 <256:1 
+n=4880000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3932/4208 (11795/12623 ns)  PRINT n=1132 max=4389  isr_max=1304 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17309 <2:26777 <4:22038 <8:3163 <16:1942 <32:7425 <64:213 <256:1 
+n=4960000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3958/4209 (11873/12626 ns)  PRINT n=1132 max=4411  isr_max=1301 ns  app=0 pkt 0 KB
+  |err| quiet: <1:16977 <2:27083 <4:22247 <8:3261 <16:1862 <32:7193 <64:244 <256:1 
+n=5040000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3963/4206 (11888/12617 ns)  PRINT n=1132 max=4387  isr_max=1295 ns  app=0 pkt 0 KB
+  |err| quiet: <1:16938 <2:26431 <4:21716 <8:3327 <16:2026 <32:8166 <64:263 <256:1 
+n=5120000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3957/4209 (11870/12626 ns)  PRINT n=1132 max=4343  isr_max=1280 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17516 <2:27053 <4:22057 <8:3136 <16:1761 <32:7141 <64:203 <256:1 
+n=5200000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3961/4207 (11882/12620 ns)  PRINT n=1132 max=4370  isr_max=1292 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17372 <2:26944 <4:22255 <8:3239 <16:1731 <32:7118 <64:208 <256:1 
+n=5280000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3979/4207 (11936/12620 ns)  PRINT n=1132 max=4379  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17234 <2:27215 <4:22231 <8:3202 <16:1732 <32:7045 <64:208 <256:1 
+n=5360000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3933/4208 (11798/12623 ns)  PRINT n=1132 max=4394  isr_max=1292 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17383 <2:27295 <4:22167 <8:3194 <16:1820 <32:6835 <64:173 <256:1 
+n=5440000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3967/4209 (11900/12626 ns)  PRINT n=1132 max=4370  isr_max=1295 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17157 <2:27246 <4:22212 <8:3181 <16:1805 <32:7051 <64:215 <256:1 
+n=5520000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3981/4205 (11942/12614 ns)  PRINT n=1132 max=4352  isr_max=1301 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17043 <2:27121 <4:22282 <8:3304 <16:1838 <32:7068 <64:211 <256:1 
+n=5600000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3981/4208 (11942/12623 ns)  PRINT n=1132 max=4378  isr_max=1295 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17428 <2:27420 <4:22211 <8:3244 <16:1674 <32:6703 <64:187 <256:1 
+n=5680000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3964/4207 (11891/12620 ns)  PRINT n=1132 max=4383  isr_max=1298 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17285 <2:27025 <4:22435 <8:3205 <16:1777 <32:6941 <64:199 <256:1 
+n=5760000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3975/4209 (11924/12626 ns)  PRINT n=1132 max=4408  isr_max=1283 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17327 <2:26777 <4:22256 <8:3233 <16:1772 <32:7277 <64:225 <256:1 
+n=5840000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3957/4209 (11870/12626 ns)  PRINT n=1132 max=4367  isr_max=1295 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17232 <2:27184 <4:22209 <8:3276 <16:1754 <32:7012 <64:200 <256:1 
+n=5920000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3948/4206 (11843/12617 ns)  PRINT n=1132 max=4345  isr_max=1286 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17236 <2:26939 <4:22107 <8:3173 <16:1814 <32:7352 <64:246 <256:1 
+n=6000000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3931/4208 (11792/12623 ns)  PRINT n=1132 max=4386  isr_max=1301 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17059 <2:26945 <4:22078 <8:3129 <16:1880 <32:7547 <64:229 <256:1 
+n=6080000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3955/4207 (11864/12620 ns)  PRINT n=1132 max=4375  isr_max=1301 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17148 <2:27132 <4:22041 <8:3170 <16:1881 <32:7284 <64:211 <256:1 
+n=6160000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3958/4209 (11873/12626 ns)  PRINT n=1132 max=4355  isr_max=1307 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17119 <2:26936 <4:22214 <8:3159 <16:1822 <32:7374 <64:243 <256:1 
+n=6240000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3956/4207 (11867/12620 ns)  PRINT n=1132 max=4395  isr_max=1292 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17216 <2:26870 <4:21899 <8:3216 <16:1854 <32:7598 <64:214 <256:1 
+n=6320000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3957/4207 (11870/12620 ns)  PRINT n=1132 max=4361  isr_max=1316 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17017 <2:27104 <4:22327 <8:3240 <16:1888 <32:7074 <64:217 <256:1 
+n=6400000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3954/4209 (11861/12626 ns)  PRINT n=1132 max=4390  isr_max=1301 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17314 <2:27192 <4:22284 <8:3152 <16:1741 <32:6969 <64:215 <256:1 
+n=6480000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3973/4208 (11918/12623 ns)  PRINT n=1132 max=4397  isr_max=1295 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17336 <2:27067 <4:21992 <8:3124 <16:1826 <32:7304 <64:218 <256:1 
+n=6560000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3975/4206 (11924/12617 ns)  PRINT n=1132 max=4395  isr_max=1298 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17116 <2:27019 <4:22066 <8:3352 <16:1867 <32:7254 <64:193 <256:1 
+n=6640000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3964/4207 (11891/12620 ns)  PRINT n=1132 max=4398  isr_max=1292 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17261 <2:27289 <4:21978 <8:3260 <16:1783 <32:7078 <64:218 <256:1 
+n=6720000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3953/4207 (11858/12620 ns)  PRINT n=1132 max=4399  isr_max=1283 ns  app=0 pkt 0 KB
+  |err| quiet: <1:16983 <2:26912 <4:21910 <8:3201 <16:1892 <32:7728 <64:241 <256:1 
+n=6800000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3957/4210 (11870/12629 ns)  PRINT n=1132 max=4389  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17325 <2:27183 <4:22090 <8:3215 <16:1763 <32:7104 <64:187 <256:1 
+n=6880000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3957/4205 (11870/12614 ns)  PRINT n=1132 max=4434  isr_max=1304 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17297 <2:27093 <4:22075 <8:3180 <16:1794 <32:7222 <64:206 <256:1 
+n=6960000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3949/4205 (11846/12614 ns)  PRINT n=1132 max=4392  isr_max=1304 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17432 <2:26945 <4:21949 <8:3200 <16:1866 <32:7256 <64:219 <256:1 
+n=7040000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3947/4209 (11840/12626 ns)  PRINT n=1132 max=4397  isr_max=1292 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17332 <2:26959 <4:22115 <8:3282 <16:1749 <32:7228 <64:202 <256:1 
+n=7120000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3984/4207 (11951/12620 ns)  PRINT n=1132 max=4384  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17186 <2:27350 <4:22208 <8:3151 <16:1780 <32:7003 <64:189 <256:1 
+n=7200000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3973/4207 (11918/12620 ns)  PRINT n=1132 max=4391  isr_max=1295 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17160 <2:26994 <4:22423 <8:3228 <16:1819 <32:7030 <64:213 <256:1 
+n=7280000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3980/4206 (11939/12617 ns)  PRINT n=1132 max=4365  isr_max=1280 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17157 <2:27161 <4:22332 <8:3133 <16:1732 <32:7127 <64:225 <256:1 
+n=7360000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3979/4207 (11936/12620 ns)  PRINT n=1132 max=4387  isr_max=1292 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17238 <2:27217 <4:21985 <8:3161 <16:1813 <32:7249 <64:204 <256:1 
+n=7440000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3976/4208 (11927/12623 ns)  PRINT n=1132 max=4402  isr_max=1289 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17180 <2:27239 <4:22118 <8:3222 <16:1722 <32:7172 <64:214 <256:1 
+n=7520000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=4010/4207 (12029/12620 ns)  PRINT n=1132 max=4404  isr_max=1307 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17290 <2:27178 <4:22135 <8:3228 <16:1829 <32:6991 <64:216 <256:1 
+n=7600000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3972/4208 (11915/12623 ns)  PRINT n=1132 max=4387  isr_max=1274 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17022 <2:27064 <4:22215 <8:3274 <16:1930 <32:7127 <64:235 <256:1 
+n=7680000 missed=0 avg=12499.988 ns  QUIET n=78868 min/max=3969/4208 (11906/12623 ns)  PRINT n=1132 max=4390  isr_max=1367 ns  app=0 pkt 0 KB
+  |err| quiet: <1:17202 <2:27065 <4:22363 <8:3213 <16:1783 <32:7035 <64:206 <256:1 
+n=7760000 missed=0 avg=12499.991 ns  QUIET n=78868 min/max=3961/4204 (11882/12611 ns)  PRINT n=1132 max=4413  isr_max=1256 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19848 <2:30901 <4:24692 <8:2633 <16:181 <32:594 <64:18 <256:1 
+n=7840000 missed=0 avg=12499.988 ns  QUIET n=78889 min/max=3953/4171 (11858/12512 ns)  PRINT n=1111 max=4384  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19880 <2:31101 <4:25267 <8:2640 <256:1 
+n=7920000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=3985/4171 (11954/12512 ns)  PRINT n=945 max=4367  isr_max=950 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20031 <2:31327 <4:25003 <8:2693 <256:1 
+n=8000000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3968/4171 (11903/12512 ns)  PRINT n=938 max=4380  isr_max=1007 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20160 <2:31160 <4:25227 <8:2514 <256:1 
+n=8080000 missed=0 avg=12499.991 ns  QUIET n=79056 min/max=3977/4171 (11930/12512 ns)  PRINT n=944 max=4362  isr_max=1001 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20226 <2:30989 <4:25203 <8:2637 <256:1 
+n=8160000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=3963/4171 (11888/12512 ns)  PRINT n=945 max=4407  isr_max=1007 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20163 <2:31159 <4:25126 <8:2606 <256:1 
+n=8240000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=4002/4171 (12005/12512 ns)  PRINT n=945 max=4368  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20113 <2:31270 <4:25043 <8:2628 <256:1 
+n=8320000 missed=0 avg=12499.988 ns  QUIET n=79063 min/max=3951/4171 (11852/12512 ns)  PRINT n=937 max=4379  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19868 <2:31125 <4:25324 <8:2745 <256:1 
+n=8400000 missed=0 avg=12499.988 ns  QUIET n=79062 min/max=3954/4171 (11861/12512 ns)  PRINT n=938 max=4379  isr_max=968 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20005 <2:31322 <4:25166 <8:2568 <256:1 
+n=8480000 missed=0 avg=12499.994 ns  QUIET n=79062 min/max=4110/4171 (12329/12512 ns)  PRINT n=938 max=4370  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20363 <2:31095 <4:24931 <8:2672 <64:1 
+n=8560000 missed=0 avg=12499.991 ns  QUIET n=79069 min/max=3966/4171 (11897/12512 ns)  PRINT n=931 max=4375  isr_max=965 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19965 <2:31204 <4:25306 <8:2593 <256:1 
+n=8640000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3959/4171 (11876/12512 ns)  PRINT n=938 max=4390  isr_max=965 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20000 <2:31262 <4:25185 <8:2614 <256:1 
+n=8720000 missed=0 avg=12499.991 ns  QUIET n=79063 min/max=3958/4171 (11873/12512 ns)  PRINT n=937 max=4387  isr_max=998 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19889 <2:31113 <4:25308 <8:2752 <256:1 
+n=8800000 missed=0 avg=12499.988 ns  QUIET n=79062 min/max=3954/4171 (11861/12512 ns)  PRINT n=938 max=4364  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20307 <2:31145 <4:25109 <8:2500 <256:1 
+n=8880000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3987/4171 (11960/12512 ns)  PRINT n=938 max=4384  isr_max=968 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20161 <2:31210 <4:25060 <8:2630 <256:1 
+n=8960000 missed=0 avg=12499.991 ns  QUIET n=79063 min/max=3977/4171 (11930/12512 ns)  PRINT n=937 max=4400  isr_max=962 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20284 <2:31111 <4:25143 <8:2524 <256:1 
+n=9040000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3976/4171 (11927/12512 ns)  PRINT n=938 max=4349  isr_max=1004 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19932 <2:31049 <4:25308 <8:2772 <256:1 
+n=9120000 missed=0 avg=12499.988 ns  QUIET n=79056 min/max=3956/4171 (11867/12512 ns)  PRINT n=944 max=4389  isr_max=974 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20052 <2:31266 <4:25131 <8:2606 <256:1 
+n=9200000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3969/4171 (11906/12512 ns)  PRINT n=938 max=4394  isr_max=1007 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19967 <2:31035 <4:25300 <8:2759 <256:1 
+n=9280000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=3975/4171 (11924/12512 ns)  PRINT n=945 max=4389  isr_max=962 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20080 <2:31336 <4:25024 <8:2614 <256:1 
+n=9360000 missed=0 avg=12499.991 ns  QUIET n=79063 min/max=3969/4171 (11906/12512 ns)  PRINT n=937 max=4363  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20107 <2:31032 <4:25241 <8:2682 <256:1 
+n=9440000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3989/4171 (11966/12512 ns)  PRINT n=938 max=4383  isr_max=965 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20161 <2:31147 <4:25227 <8:2526 <256:1 
+n=9520000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3959/4171 (11876/12512 ns)  PRINT n=938 max=4359  isr_max=1007 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20282 <2:31141 <4:25035 <8:2603 <256:1 
+n=9600000 missed=0 avg=12499.991 ns  QUIET n=79056 min/max=3967/4171 (11900/12512 ns)  PRINT n=944 max=4401  isr_max=1004 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20263 <2:31128 <4:25165 <8:2499 <256:1 
+n=9680000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=3973/4171 (11918/12512 ns)  PRINT n=945 max=4389  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20119 <2:31309 <4:24947 <8:2679 <256:1 
+n=9760000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=4029/4171 (12086/12512 ns)  PRINT n=938 max=4386  isr_max=965 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20036 <2:31179 <4:25211 <8:2635 <256:1 
+n=9840000 missed=0 avg=12499.988 ns  QUIET n=79062 min/max=3953/4171 (11858/12512 ns)  PRINT n=938 max=4371  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20180 <2:30924 <4:25339 <8:2618 <256:1 
+n=9920000 missed=0 avg=12499.991 ns  QUIET n=79062 min/max=3977/4171 (11930/12512 ns)  PRINT n=938 max=4370  isr_max=992 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20087 <2:31215 <4:25129 <8:2630 <256:1 
+n=10000000 missed=0 avg=12499.988 ns  QUIET n=79063 min/max=3950/4171 (11849/12512 ns)  PRINT n=937 max=4379  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20075 <2:31194 <4:25219 <8:2574 <256:1 
+n=10080000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=3979/4171 (11936/12512 ns)  PRINT n=945 max=4366  isr_max=1001 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20381 <2:31006 <4:25125 <8:2542 <256:1 
+n=10160000 missed=0 avg=12499.994 ns  QUIET n=79048 min/max=4102/4171 (12305/12512 ns)  PRINT n=952 max=4409  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20306 <2:31195 <4:25021 <8:2525 <128:1 
+n=10240000 missed=0 avg=12499.988 ns  QUIET n=79056 min/max=3949/4171 (11846/12512 ns)  PRINT n=944 max=4383  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20072 <2:31124 <4:25313 <8:2546 <256:1 
+n=10320000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=3976/4171 (11927/12512 ns)  PRINT n=945 max=4365  isr_max=944 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19812 <2:31348 <4:25215 <8:2679 <256:1 
+n=10400000 missed=0 avg=12499.991 ns  QUIET n=79056 min/max=3965/4171 (11894/12512 ns)  PRINT n=944 max=4361  isr_max=944 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20230 <2:31309 <4:25011 <8:2505 <256:1 
+n=10480000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=3969/4171 (11906/12512 ns)  PRINT n=945 max=4369  isr_max=962 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20194 <2:31201 <4:25069 <8:2590 <256:1 
+n=10560000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=3972/4171 (11915/12512 ns)  PRINT n=945 max=4370  isr_max=1001 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20051 <2:31313 <4:25088 <8:2602 <256:1 
+n=10640000 missed=0 avg=12499.991 ns  QUIET n=79049 min/max=3960/4171 (11879/12512 ns)  PRINT n=951 max=4364  isr_max=947 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20177 <2:31113 <4:25052 <8:2706 <256:1 
+n=10720000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=3971/4171 (11912/12512 ns)  PRINT n=945 max=4381  isr_max=947 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20382 <2:31164 <4:24915 <8:2593 <256:1 
+n=10800000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=3987/4171 (11960/12512 ns)  PRINT n=945 max=4384  isr_max=974 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20191 <2:31221 <4:25061 <8:2581 <256:1 
+n=10880000 missed=0 avg=12499.991 ns  QUIET n=79056 min/max=3969/4171 (11906/12512 ns)  PRINT n=944 max=4373  isr_max=956 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20173 <2:30968 <4:25321 <8:2593 <256:1 
+n=10960000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=3971/4171 (11912/12512 ns)  PRINT n=945 max=4396  isr_max=992 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20217 <2:31181 <4:25095 <8:2561 <256:1 
+n=11040000 missed=0 avg=12499.997 ns  QUIET n=79055 min/max=4162/4172 (12485/12515 ns)  PRINT n=945 max=4381  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20236 <2:31056 <4:25192 <8:2571 
+n=11120000 missed=0 avg=12499.991 ns  QUIET n=79104 min/max=3958/4171 (11873/12512 ns)  PRINT n=896 max=4364  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20157 <2:31057 <4:25264 <8:2625 <256:1 
+n=11200000 missed=0 avg=12499.991 ns  QUIET n=79055 min/max=3959/4171 (11876/12512 ns)  PRINT n=945 max=4375  isr_max=980 ns  app=0 pkt 0 KB
+  |err| quiet: <1:19961 <2:31314 <4:25197 <8:2582 <256:1 
+n=11280000 missed=0 avg=12499.991 ns  QUIET n=79056 min/max=3962/4171 (11885/12512 ns)  PRINT n=944 max=4375  isr_max=941 ns  app=0 pkt 0 KB
+  |err| quiet: <1:20327 <2:31135 <4:24959 <8:2634 <256:1 

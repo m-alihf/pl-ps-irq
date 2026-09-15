@@ -305,8 +305,8 @@ shifter. The image is 4.1 MB, so either holds it.
 ## 7. Bidirectional TCP
 
 The transmit path was the last thing to work, and it took three separate fixes.
-The board now holds a TCP echo session at **19.28 Mbit/s in each direction,
-47,070 round trips**, measured with `tools/tcp_load.py` against a BSP regenerated
+The board now holds a TCP echo session at **35 Mbit/s in each direction,
+516 MB in 60 s**, measured with `tools/tcp_load.py` against a BSP regenerated
 from scratch and patched only by the script below.
 
 Run it on a freshly regenerated BSP, then rebuild:
@@ -356,6 +356,10 @@ It is idempotent and it touches two files:
    are not, and none are used here. The L2 helper functions are themselves
    compiled out under `USE_AMP`, so the patch writes the registers directly.
 
+   The 19.28 Mbit/s figure this section carried before was taken through a
+   faulty host NIC - see section 10. The same build on a working adapter does
+   70 Mbit/s echoed both ways.
+
 Two more, in the stock echo template, applied to `app_cpu1/src/echo.c`
 (`cpu1/reference/echo.c`): `tcp_recved(tpcb, p->len)` only acknowledges the first
 buffer of a chain, so the receive window shrinks on every chained segment until it
@@ -364,16 +368,73 @@ back, not just the first buffer.
 
 `cpu1/bsp_settings.txt` lists the `.mss` settings this depends on -
 `tcp_wnd` and `tcp_snd_buf` at 16384, `stdout = none`, `-DUSE_AMP=1`.
-`cpu1/bsp_patch_rtl8211f.txt` is the full investigation.
+`cpu1/bsp_patch_rtl8211f.txt` is the full investigation, and section 10 has
+the check to run before believing any Ethernet fault on this board.
 
-## 8. Not yet done
+## 8. Bidirectional TCP under the interrupt, measured
 
-1. **`missed` under TCP load, from the serial terminal.** The number under the
-   97 Mbit/s receive flood is 0 and was taken with no debugger attached. The
-   bidirectional TCP figure has only been read back over JTAG so far, and the
-   probe dominates it: 904 missed out of 6,894,508 under load, against 405 out of
-   5,974,601 idle with the same two debugger connects. That is the measurement,
-   not the system. It needs one run read off UART0 with nothing attached.
-2. **`isr_max` ~900 ns** is almost entirely the three AXI-GP register reads. If the
-   ISR ever needs to do more work, have the PL push the sample into the shared DDR
-   window instead of being read over AXI.
+Booted from the microSD card, no debug session attached, the whole run captured
+off UART0. `tools/tcp_load_capture.log` is the raw capture; the load was
+`tools/tcp_load.py --conns 4 --block 4096 --seconds 60`, sustaining
+**70 Mbit/s echoed both ways - 516 MB in 60 s**.
+
+| | idle before | under TCP load | idle after |
+|---|---|---|---|
+| reports | 28 | 60 | 28 |
+| **interrupts missed** | **0** | **0** | **0** |
+| worst period | 12578 ns | 12629 ns | 12623 ns |
+| `isr_max` | 1817 ns | 1343 ns | 1367 ns |
+
+**9,280,000 interrupts, zero missed.** Worst deviation under load is 129 ns,
+about 1 % of the period - the same order as the 97 Mbit/s receive-only flood in
+the table at the top, and now with the transmit DMA path loaded as well.
+
+An earlier reading of this taken over JTAG showed 904 missed out of 6,894,508.
+That was the probe: an idle control run with the same two debugger connects
+showed 405 out of 5,974,601. Reading the counters over JTAG perturbs them more
+than the network load does.
+
+## 9. Not yet done
+
+**`isr_max` ~900 ns** is almost entirely the three AXI-GP register reads. If the
+ISR ever needs to do more work, have the PL push the sample into the shared DDR
+window instead of being read over AXI.
+
+## 10. Two things that cost days
+
+**The BSP patches are not sticky.** Regenerating the BSP - which the SDK will do
+on its own, without being asked - restores the pristine `xemacpsif_physpeed.c`
+and `xil_cache.c` and resets `stdout` to `ps7_uart_0`. The link then flaps, the
+MAC transmits zeros, and CPU1 prints over CPU0's measurement output. Everything
+looks like new hardware faults. Check first, before diagnosing anything:
+
+```
+grep -c "L2 maintenance restored for AMP" <bsp>/ps7_cortexa9_1/libsrc/standalone_v7_0/src/xil_cache.c
+grep -c "phy_configured" <bsp>/.../netif/xemacpsif_physpeed.c
+grep -c STDOUT_BASEADDRESS <bsp>/ps7_cortexa9_1/include/xparameters.h
+```
+
+Two zeros and a zero is the state you want. Anything else, re-run
+`python cpu1/apply_bsp_patch.py` and rebuild.
+
+**The host NIC was the other half.** The Realtek PCIe GbE in the laptop reports
+`Disconnected` with the cable in and the board's PHY negotiated and stable -
+`BMSR` link bit set for 20 consecutive samples over 10 s, `PHYSR` 0x31DC
+(100 Mbit, full duplex), and `ANLPAR` 0xCDE1 with the Acknowledge bit set, which
+only the link partner can set and only after it has received our link code words.
+So the board was being heard by something that Windows insisted was not there.
+Disabling and re-enabling the adapter did not help. A USB-C to Ethernet adapter
+in the same laptop linked immediately, pinged 4/4, and ran the 70 Mbit/s echo
+above. The lifetime receive counter on that Realtek had been zero from the first
+day of this project, for any traffic at all.
+
+Useful registers when the link is the suspect, read over JTAG with the cores
+running - `mrd -force` does not halt them:
+
+| | |
+|---|---|
+| `BMSR` bit 2 | link, latching low - read twice, the second read is current |
+| `ANLPAR` bit 14 | the partner acknowledges our link code words |
+| `PHYSR` page 0xA43 reg 0x1A | RTL8211F: bit 2 link, bits 5:4 speed, bit 3 duplex |
+| `NWCFG` 0xE000B004 | 0x011F20C3 once the driver has configured the MAC |
+| frames RX `0xE000B158` | clear-on-read |
