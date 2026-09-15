@@ -394,6 +394,31 @@ That was the probe: an idle control run with the same two debugger connects
 showed 405 out of 5,974,601. Reading the counters over JTAG perturbs them more
 than the network load does.
 
+### Filling the period
+
+`ISR_BUSY_NS` in `cpu0/src/main.c` holds the handler at a fixed duration
+measured from entry, so the ISR occupies a chosen slice of the 12.5 us period
+whatever the cache state and whatever the compiler does with the loop:
+
+```c
+#define ISR_BUSY_NS    11000u
+...
+while ((Xil_In32(GT_CNT_LO) - t0) < ISR_BUSY_TICKS) { }
+```
+
+At 11000 the handler measures 11843 ns and the core spends **95 % of every
+period inside the ISR**, leaving 657 ns for the main loop - which still has to
+print the statistics over the UART. Under the same 70 Mbit/s bidirectional TCP
+load: 6,800,000 interrupts, **zero missed**, worst period 12860 ns.
+`tools/isr_11us_capture.log` is the capture. That run was loaded over JTAG with
+no commands issued during it, not booted from the card, so it is one step less
+clean than section 8.
+
+The worst period moved from 12629 ns to 12860 ns. With the ISR filling the
+period there is nothing left to absorb a delay, so what was slack before now
+shows up in the measurement. Set `ISR_BUSY_NS` to 0 to get the original handler
+back.
+
 ## 9. Not yet done
 
 **`isr_max` ~900 ns** is almost entirely the three AXI-GP register reads. If the

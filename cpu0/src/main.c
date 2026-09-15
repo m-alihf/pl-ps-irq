@@ -24,6 +24,8 @@
  * integer. GT_EXPECTED is the truncated value used for histogram binning;
  * GT_EXPECTED_K is the same figure x1000, used for the printed average. */
 #define GT_EXPECTED   ((u32)(((u64)COUNTS_PER_SECOND * IRQ_PERIOD_NS) / 1000000000ull))
+#define ISR_BUSY_NS    11000u
+#define ISR_BUSY_TICKS ((u32)(((u64)COUNTS_PER_SECOND * ISR_BUSY_NS) / 1000000000ull))
 #define GT_EXPECTED_K ((u32)(((u64)COUNTS_PER_SECOND * IRQ_PERIOD_NS) / 1000000ull))
 
 typedef struct {
@@ -67,6 +69,10 @@ static void pl_irq_handler(void *arg)
         acc = acc * 1664525u + 1013904223u;
     }
     st.sink += acc;
+
+    /* hold the handler at ISR_BUSY_NS measured from entry, so the ISR occupies
+     * a fixed slice of the period regardless of cache state or optimisation */
+    while ((Xil_In32(GT_CNT_LO) - t0) < ISR_BUSY_TICKS) { }
     /* -------------------------- */
 
     if (st.count != 0u) {
