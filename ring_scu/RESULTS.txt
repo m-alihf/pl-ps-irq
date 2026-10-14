@@ -1,0 +1,25 @@
+Sample ring between the cores, measured 2026-10-03
+==================================================
+
+CPU0's 12.5 us interrupt handler writes one 16-byte record per interrupt into a
+shared ring; CPU1 drains it in 64-record batches into tcp_write; the laptop sends
+a 4-byte command back, which CPU1 hands to the handler through a shared word.
+80,000 records/s, loaded over JTAG, nothing issued to the board while measuring,
+30 s per column, serial captured off UART0.
+
+                                 all non-cacheable   data cacheable   data + indices cacheable
+handler, mean                    1159 ns             1129 ns          873 ns
+handler, max                     2330 ns             2033 ns          1541 ns
+tcp_write of one 1024 B batch    10328 ns            1661 ns          1660 ns
+worst period                     12608 ns            12605 ns         12611 ns
+records missing at the laptop    0                   0                0
+interrupts missed                0                   0                0
+
+tcp_write includes lwIP's own bookkeeping, identical in every column, so the
+8668 ns difference is all memory read time.
+
+Open: the first connection after loading the board failed three times (once
+per configuration: a 1.26 s stall, a dead network with a corrupted RX
+descriptor ring, 20 s with no data), while 20 automated load-and-connect cycles
+were all clean. Not understood. In two of the three, the serial port was opened
+between the load and the first connection.

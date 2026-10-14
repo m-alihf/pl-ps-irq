@@ -24,8 +24,6 @@
  * integer. GT_EXPECTED is the truncated value used for histogram binning;
  * GT_EXPECTED_K is the same figure x1000, used for the printed average. */
 #define GT_EXPECTED   ((u32)(((u64)COUNTS_PER_SECOND * IRQ_PERIOD_NS) / 1000000000ull))
-#define ISR_BUSY_NS    11000u
-#define ISR_BUSY_TICKS ((u32)(((u64)COUNTS_PER_SECOND * ISR_BUSY_NS) / 1000000000ull))
 #define GT_EXPECTED_K ((u32)(((u64)COUNTS_PER_SECOND * IRQ_PERIOD_NS) / 1000000ull))
 
 typedef struct {
@@ -37,6 +35,11 @@ typedef struct {
     u32 max_d;
     s32 sum_res;      /* sum of (delta - GT_EXPECTED); 32-bit so main reads it atomically */
     u32 isr_max;
+    u32 isr_sum;      /* ticks spent in the handler since the last report */
+    u32 x_n;          /* exchanges handled since the last report */
+    u32 x_lat;        /* ticks from rx_ts on CPU1 to the start of the work, summed */
+    u32 x_op;         /* ticks spent on the work itself, summed */
+    u32 x_op_max;
     u32 gate;         /* set by main while it is inside xil_printf */
     u32 gated_n;      /* samples that landed in a print window */
     u32 gated_max;
@@ -58,7 +61,8 @@ static void pl_irq_handler(void *arg)
     u32 t0   = Xil_In32(GT_CNT_LO);
     u32 seq  = Xil_In32(PL_REG_SEQ);
     u32 data = Xil_In32(PL_REG_DATA);
-    u32 acc, t1, d, err, b;
+    u32 acc, t1, d, err, b, rx, ta, tb;
+    static u32 done;
     int i;
 
     (void)arg;
@@ -70,9 +74,31 @@ static void pl_irq_handler(void *arg)
     }
     st.sink += acc;
 
-    /* hold the handler at ISR_BUSY_NS measured from entry, so the ISR occupies
-     * a fixed slice of the period regardless of cache state or optimisation */
-    while ((Xil_In32(GT_CNT_LO) - t0) < ISR_BUSY_TICKS) { }
+    /* -------------------------- */
+
+    /* ---- a request from CPU1: RECEIVE -> work -> SEND ---- */
+    rx = XCHG->rx_seq;
+    if (rx != done) {
+        register const u32 *src = XCHG->receive;
+        register u32 *dst = XCHG->send;
+        register u32 k;
+
+        ta = Xil_In32(GT_CNT_LO);
+        for (k = ARR_WORDS; k != 0u; k--) {
+            *dst++ = *src++ * 3u + 1u;
+        }
+        tb = Xil_In32(GT_CNT_LO);
+
+        XCHG->tx_ts = tb;
+        dmb();                  /* SEND and tx_ts must be in place before tx_seq moves */
+        XCHG->tx_seq = rx;
+        done = rx;
+
+        st.x_n++;
+        st.x_lat += ta - XCHG->rx_ts;
+        st.x_op  += tb - ta;
+        if ((tb - ta) > st.x_op_max) st.x_op_max = tb - ta;
+    }
     /* -------------------------- */
 
     if (st.count != 0u) {
@@ -100,6 +126,7 @@ static void pl_irq_handler(void *arg)
 
     t1 = Xil_In32(GT_CNT_LO);
     if ((t1 - t0) > st.isr_max) st.isr_max = t1 - t0;
+    st.isr_sum += t1 - t0;
 }
 
 /* GIC distributor CPU-target registers: one byte per interrupt ID */
@@ -147,8 +174,10 @@ static void start_cpu1(void)
 
 int main(void)
 {
-    u32 addr, last = 0u, mn, mx, ms, isr, n, nq, gn, gmx, avg_ps;
+    u32 addr, last = 0u, mn, mx, ms, isr, n, nq, gn, gmx, avg_ps, isum;
     u32 last_pkts = 0u, last_bytes = 0u, pkts, kbytes;
+    u32 last_xn = 0u, last_fill = 0u, last_wait = 0u, last_send = 0u;
+    u32 xn, xlat, xop, xopm, cn, cfill, cwait, csend;
     u32 hist[HIST_BINS];
     s32 res;
     s64 avg_kt;
@@ -163,6 +192,7 @@ int main(void)
         Xil_SetTlbAttributes(addr, 0x14de2);
     }
     Xil_SetTlbAttributes(0xFFF00000u, 0x14de2);
+    Xil_SetTlbAttributes(XCHG_BASE, XCHG_ATTR);
 
     memset((void *)&st, 0, sizeof(st));
     st.min_d = 0xFFFFFFFFu;
@@ -172,6 +202,10 @@ int main(void)
     AMP_SYNC->cpu1_pkts      = 0u;
     AMP_SYNC->cpu1_bytes     = 0u;
     AMP_SYNC->cpu1_sum       = 0u;
+    AMP_SYNC->x_n            = 0u;
+    AMP_SYNC->x_fill         = 0u;
+    AMP_SYNC->x_wait         = 0u;
+    AMP_SYNC->x_send         = 0u;
 
     /* global timer: stop, zero, start */
     Xil_Out32(GT_CTRL, 0u);
@@ -192,6 +226,11 @@ int main(void)
     while (AMP_SYNC->cpu1_ready != AMP_MAGIC) { }
 #endif
 
+    /* Each core initialises the cacheable words it owns, and this core leaves
+     * the cacheable section alone until CPU1 is up: the boot code of CPU1
+     * invalidates the SCU copy of the cache tags for every core, not just its own. */
+    XCHG->tx_seq = 0u;
+
     Xil_Out32(PL_REG_PERIOD, PL_PERIOD_CYCLES);
     Xil_Out32(PL_REG_CTRL, 1u);
     xil_printf("PL generator started (WITH_CPU1=%d)\r\n", WITH_CPU1);
@@ -207,6 +246,11 @@ int main(void)
         mx  = st.max_d;
         ms  = st.missed;
         isr = st.isr_max;
+        isum = st.isr_sum;
+        xn   = st.x_n;
+        xlat = st.x_lat;
+        xop  = st.x_op;
+        xopm = st.x_op_max;
         res = st.sum_res;
         gn  = st.gated_n;
         gmx = st.gated_max;
@@ -219,6 +263,11 @@ int main(void)
         st.min_d     = 0xFFFFFFFFu;
         st.max_d     = 0u;
         st.isr_max   = 0u;
+        st.isr_sum   = 0u;
+        st.x_n       = 0u;
+        st.x_lat     = 0u;
+        st.x_op      = 0u;
+        st.x_op_max  = 0u;
         st.sum_res   = 0;
         st.gated_n   = 0u;
         st.gated_max = 0u;
@@ -233,13 +282,22 @@ int main(void)
         last_pkts  = AMP_SYNC->cpu1_pkts;
         last_bytes = AMP_SYNC->cpu1_bytes;
 
+        cn    = AMP_SYNC->x_n    - last_xn;
+        cfill = AMP_SYNC->x_fill - last_fill;
+        cwait = AMP_SYNC->x_wait - last_wait;
+        csend = AMP_SYNC->x_send - last_send;
+        last_xn   += cn;
+        last_fill += cfill;
+        last_wait += cwait;
+        last_send += csend;
+
         st.gate = 1u;   /* everything printed below is excluded from the stats */
 
         xil_printf("n=%u missed=%u avg=%u.%03u ns  QUIET n=%u min/max=%u/%u "
-                   "(%u/%u ns)  PRINT n=%u max=%u  isr_max=%u ns  app=%u pkt %u KB\r\n",
+                   "(%u/%u ns)  PRINT n=%u max=%u  isr_max=%u avg=%u ns  app=%u pkt %u KB\r\n",
                    n, ms, avg_ps / 1000u, avg_ps % 1000u, nq, mn, mx,
                    ticks_to_ns(mn), ticks_to_ns(mx), gn, gmx,
-                   ticks_to_ns(isr), pkts, kbytes);
+                   ticks_to_ns(isr), ticks_to_ns(isum / REPORT_EVERY), pkts, kbytes);
 
         xil_printf("  |err| quiet: ");
         for (i = 0; i < HIST_BINS; i++) {
@@ -248,6 +306,16 @@ int main(void)
             }
         }
         xil_printf("\r\n");
+
+        /* one exchange, stage by stage: copy into RECEIVE on CPU1, wait for the
+         * next interrupt on this core, the work, wait for the main loop on CPU1,
+         * tcp_write */
+        if (xn != 0u && cn != 0u) {
+            xil_printf("  xchg n=%u  fill=%u  wait0=%u  work=%u max=%u  wait1=%u  send=%u ns\r\n",
+                       xn, ticks_to_ns(cfill / cn), ticks_to_ns(xlat / xn),
+                       ticks_to_ns(xop / xn), ticks_to_ns(xopm),
+                       ticks_to_ns(cwait / cn), ticks_to_ns(csend / cn));
+        }
 
         st.gate = 0u;
     }

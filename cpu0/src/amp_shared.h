@@ -44,8 +44,37 @@ typedef struct {
     volatile u32 cpu1_pkts;     /* packets delivered to the UDP application */
     volatile u32 cpu1_bytes;    /* payload bytes copied out of the pbufs */
     volatile u32 cpu1_sum;      /* keeps the read-back from being optimised away */
+    volatile u32 x_n;           /* exchanges CPU1 has sent back */
+    volatile u32 x_fill;        /* ticks copying requests from the network buffer into RECEIVE, summed */
+    volatile u32 x_wait;        /* ticks from tx_ts until CPU1 picked SEND up, summed */
+    volatile u32 x_send;        /* ticks in tcp_write out of SEND, summed */
 } amp_sync_t;
 
 #define AMP_SYNC ((amp_sync_t *)SHARED_BASE)
+
+/* Request/response exchange between the cores. CPU1 fills RECEIVE from the
+ * network and bumps rx_seq; the interrupt handler on CPU0 works on it, writes
+ * the result into SEND and sets tx_seq to match; CPU1 sends SEND back out.
+ *
+ * The section is cacheable and shareable, so both cores reach it through their
+ * own L1 and the SCU keeps the two coherent. One 32-byte cache line per writer:
+ * if rx_seq and tx_seq shared a line, every write by one core would take the
+ * line away from the other. */
+#define XCHG_BASE   0x1F100000u
+#define XCHG_ATTR   0x15de6u        /* write-back cacheable, shareable. 0x14de2u = non-cacheable */
+#define ARR_WORDS   256u            /* 1024 bytes: one TCP segment */
+
+typedef struct {
+    volatile u32 rx_seq;        /* written only by CPU1: RECEIVE is full */
+    volatile u32 rx_ts;         /* global timer when rx_seq moved */
+    u32 pad0[6];
+    volatile u32 tx_seq;        /* written only by CPU0: SEND answers this rx_seq */
+    volatile u32 tx_ts;         /* global timer when the work finished */
+    u32 pad1[6];
+    u32 receive[ARR_WORDS];     /* CPU1 writes, CPU0 reads */
+    u32 send[ARR_WORDS];        /* CPU0 writes, CPU1 reads */
+} xchg_t;
+
+#define XCHG ((xchg_t *)XCHG_BASE)
 
 #endif /* AMP_SHARED_H */

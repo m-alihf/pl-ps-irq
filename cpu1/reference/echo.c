@@ -31,11 +31,37 @@
 
 #include "lwip/err.h"
 #include "lwip/tcp.h"
+#include "amp_shared.h"
+#include "xil_io.h"
+#include "xpseudo_asm.h"
 #if defined (__arm__) || defined (__aarch64__)
 #include "xil_printf.h"
 #endif
 
+static struct tcp_pcb *conn;
+static u32 sent;        /* tx_seq of the last answer handed to lwIP */
+static u32 fill;        /* bytes of the current request already in RECEIVE */
+
+/* Runs on every pass of the main loop: once CPU0 has finished an answer, send
+ * SEND back to the laptop. */
 int transfer_data() {
+	u32 tx, t0, t1;
+
+	tx = XCHG->tx_seq;
+	if (conn == NULL || tx == sent) {
+		return 0;
+	}
+
+	t0 = Xil_In32(GT_CNT_LO);
+	if (tcp_write(conn, XCHG->send, sizeof(XCHG->send), TCP_WRITE_FLAG_COPY) == ERR_OK) {
+		t1 = Xil_In32(GT_CNT_LO);
+		tcp_output(conn);
+		sent = tx;
+
+		AMP_SYNC->x_wait += t0 - XCHG->tx_ts;
+		AMP_SYNC->x_send += t1 - t0;
+		AMP_SYNC->x_n++;
+	}
 	return 0;
 }
 
@@ -52,40 +78,37 @@ void print_app_header()
 err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
                                struct pbuf *p, err_t err)
 {
-	/* do not read the packet if we are not in ESTABLISHED state */
+	u32 t0;
+
 	if (!p) {
+		conn = NULL;
 		tcp_close(tpcb);
 		tcp_recv(tpcb, NULL);
 		return ERR_OK;
 	}
 
-	/* indicate that the packet has been received */
-	/* Acknowledge the whole chain. The stock example passes p->len, which is
-	 * only the first buffer, so every chained segment shrinks the receive
-	 * window permanently until it reaches zero and the connection stops dead.
-	 * p->tot_len is what actually arrived. */
+	/* A request is exactly sizeof(RECEIVE) bytes, but TCP may deliver it in
+	 * pieces, so collect until RECEIVE is full and only then tell CPU0. */
+	t0 = Xil_In32(GT_CNT_LO);
+	fill += pbuf_copy_partial(p, (u8 *)XCHG->receive + fill,
+	                          sizeof(XCHG->receive) - fill, 0);
+	AMP_SYNC->x_fill += Xil_In32(GT_CNT_LO) - t0;
+
+	if (fill == sizeof(XCHG->receive)) {
+		fill = 0u;
+		XCHG->rx_ts = Xil_In32(GT_CNT_LO);
+		dmb();                  /* RECEIVE and rx_ts must be in place before rx_seq moves */
+		XCHG->rx_seq++;
+	}
+
 	tcp_recved(tpcb, p->tot_len);
-
-	/* echo back the payload */
-	/* in this case, we assume that the payload is < TCP_SND_BUF */
-	if (tcp_sndbuf(tpcb) >= p->tot_len) {
-		struct pbuf *q;
-
-		/* echo the whole chain back, not just its first buffer */
-		for (q = p; q != NULL; q = q->next) {
-			err = tcp_write(tpcb, q->payload, q->len, TCP_WRITE_FLAG_COPY);
-			if (err != ERR_OK) {
-				break;
-			}
-		}
-		tcp_output(tpcb);
-	} else
-		xil_printf("no space in tcp_sndbuf\n\r");
-
-	/* free the received pbuf */
 	pbuf_free(p);
-
 	return ERR_OK;
+}
+
+static void err_callback(void *arg, err_t err)
+{
+	conn = NULL;    /* lwIP has already freed the pcb */
 }
 
 err_t accept_callback(void *arg, struct tcp_pcb *newpcb, err_t err)
@@ -93,7 +116,12 @@ err_t accept_callback(void *arg, struct tcp_pcb *newpcb, err_t err)
 	static int connection = 1;
 
 	/* set the receive callback for this connection */
+	conn = newpcb;
+	sent = XCHG->tx_seq;    /* an answer to an earlier connection is not for this one */
+	fill = 0u;
+	tcp_nagle_disable(newpcb);
 	tcp_recv(newpcb, recv_callback);
+	tcp_err(newpcb, err_callback);
 
 	/* just use an integer number indicating the connection id as the
 	   callback argument */

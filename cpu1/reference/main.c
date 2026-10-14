@@ -198,6 +198,8 @@ int main()
 		for (a = SHARED_BASE; a < SHARED_BASE + SHARED_SIZE; a += 0x100000u) {
 			Xil_SetTlbAttributes(a, 0x14de2);
 		}
+		Xil_SetTlbAttributes(XCHG_BASE, XCHG_ATTR);
+		Xil_SetTlbAttributes(0x1E100000u, NORM_NONCACHE);  /* lwIP heap, see lwipopts.h */
 	}
 	/* The shared window must be non-cacheable before this spin, or CPU1 would
 	 * poll its own cached copy of the flag and never see CPU0's write. */
@@ -248,6 +250,7 @@ int main()
 
 	/* now enable interrupts */
 	platform_enable_interrupts();
+	XCHG->rx_seq = 0u;                      /* each core initialises the words it owns */
 	AMP_SYNC->cpu1_ready = AMP_MAGIC;
 
 	{

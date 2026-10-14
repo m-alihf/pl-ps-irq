@@ -100,10 +100,13 @@ cpu1/reference/main.c     the CPU1 main.c as actually built and measured
 cpu1/bsp_patch_rtl8211f.txt the PHY speed-detection fix and the Ethernet notes
 tools/run_amp.tcl         XSCT script: reset, FPGA, ps7_init, download, run both
 tools/udp_flood.py        line-rate UDP broadcast, the real network load
-tools/tcp_load.py         echo-server driver, for when transmit works
+tools/tcp_load.py         echo-server driver (needs commit f05ebf2, see section 7)
+tools/amp_xchg.py         drives the core-to-core exchange, checks and times it
 boot/boot.bif             partition list for bootgen, with the ordering rule
 boot/build_fsbl.sh        builds the FSBL outside Eclipse, when SDK holds the workspace
 pl_eth/                   a working second Ethernet port over GEM1 and the PL, parked
+ring_scu/                 the one-way sample ring that came before section 11, and its numbers
+lwip_noncacheable_experiment/  the BSP files for section 12
 ```
 
 ## 1. Hardware (Vivado)
@@ -304,6 +307,10 @@ shifter. The image is 4.1 MB, so either holds it.
 
 ## 7. Bidirectional TCP
 
+Sections 7 and 8 were measured with the stock echo server on port 7, as of
+commit f05ebf2. Port 7 now carries the exchange of section 11 instead, so
+`tools/tcp_load.py` needs that commit.
+
 The transmit path was the last thing to work, and it took three separate fixes.
 The board now holds a TCP echo session at **35 Mbit/s in each direction,
 516 MB in 60 s**, measured with `tools/tcp_load.py` against a BSP regenerated
@@ -396,7 +403,8 @@ than the network load does.
 
 ### Filling the period
 
-`ISR_BUSY_NS` in `cpu0/src/main.c` holds the handler at a fixed duration
+`ISR_BUSY_NS` in `cpu0/src/main.c` (commit 5079d84, removed since) held the
+handler at a fixed duration
 measured from entry, so the ISR occupies a chosen slice of the 12.5 us period
 whatever the cache state and whatever the compiler does with the loop:
 
@@ -416,10 +424,15 @@ clean than section 8.
 
 The worst period moved from 12629 ns to 12860 ns. With the ISR filling the
 period there is nothing left to absorb a delay, so what was slack before now
-shows up in the measurement. Set `ISR_BUSY_NS` to 0 to get the original handler
-back.
+shows up in the measurement.
 
 ## 9. Not yet done
+
+**The first connection after loading the board sometimes fails.** Three times
+in about thirty loads: once a 1.26 s stall, once a dead network with a
+corrupted RX descriptor ring, once 20 s with no data - each time the first
+connection, and the second one fine. Twenty automated load-and-connect cycles
+were all clean. CPU0 missed nothing in any of them. Not understood.
 
 **`isr_max` ~900 ns** is almost entirely the three AXI-GP register reads. If the
 ISR ever needs to do more work, have the PL push the sample into the shared DDR
@@ -439,7 +452,7 @@ grep -c "phy_configured" <bsp>/.../netif/xemacpsif_physpeed.c
 grep -c STDOUT_BASEADDRESS <bsp>/ps7_cortexa9_1/include/xparameters.h
 ```
 
-Two zeros and a zero is the state you want. Anything else, re-run
+Two non-zero counts and a zero is the state you want. Anything else, re-run
 `python cpu1/apply_bsp_patch.py` and rebuild.
 
 **The host NIC was the other half.** The Realtek PCIe GbE in the laptop reports
@@ -463,3 +476,117 @@ running - `mrd -force` does not halt them:
 | `PHYSR` page 0xA43 reg 0x1A | RTL8211F: bit 2 link, bits 5:4 speed, bit 3 duplex |
 | `NWCFG` 0xE000B004 | 0x011F20C3 once the driver has configured the MAC |
 | frames RX `0xE000B158` | clear-on-read |
+
+**An SDK debug session stops the cores.** The SDK leaves breakpoints on `main` and
+`_exit` in hw_server, and they apply to anything loaded later over JTAG: both
+cores stop at the first line of `main` and nothing runs. `bplist` in xsct lists
+them under "Breakpoints set from other Debug clients". End the debug session in
+the SDK, or `con` both targets after `tools/run_amp.tcl`.
+
+## 11. Passing data between the cores through the SCU
+
+The two cores now exchange real data. The laptop sends an array of 256 words;
+CPU1 copies it into `RECEIVE`, the interrupt handler on CPU0 computes
+`x * 3 + 1` for every element into `SEND`, and CPU1 sends `SEND` back.
+`tools/amp_xchg.py` drives it, sends a different array every time, checks every
+element of every answer and times the round trip:
+
+```
+python tools/amp_xchg.py 192.168.1.199
+```
+
+From `amp_shared.h`:
+
+```c
+typedef struct {
+    volatile u32 rx_seq;        /* written only by CPU1: RECEIVE is full */
+    volatile u32 rx_ts;
+    u32 pad0[6];
+    volatile u32 tx_seq;        /* written only by CPU0: SEND answers this rx_seq */
+    volatile u32 tx_ts;
+    u32 pad1[6];
+    u32 receive[ARR_WORDS];     /* CPU1 writes, CPU0 reads */
+    u32 send[ARR_WORDS];        /* CPU0 writes, CPU1 reads */
+} xchg_t;
+```
+
+Each counter has one writer and its own 32-byte cache line, so neither core
+takes a line away from the other by writing it. Data first, then a `dmb`, then
+the counter. CPU0 looks at `rx_seq` once per interrupt, so a request waits half
+a period for its turn on average. Each core initialises only the words it owns,
+and CPU0 leaves the section alone until CPU1 is up: the CPU1 boot code writes
+0xFFFF to the SCU invalidate register, which clears the SCU tag copies of every
+core, not just its own.
+
+`XCHG_ATTR` maps the section. 30 s per column, about 50,000 exchanges, `-O0`,
+loaded over JTAG, nothing issued to the board while measuring, times in ns:
+
+| stage | cacheable, SCU | non-cacheable |
+|---|---|---|
+| 1. copy the request into `RECEIVE` (CPU1) | 3842 | 2653 |
+| 2. wait for the next interrupt on CPU0 | 6426 | 6669 |
+| 3. **the work, inside the handler (CPU0)** | **5395** | **43876** |
+| 4. until CPU1 sees `tx_seq` | 325 | 543 |
+| 5. `tcp_write` out of `SEND` (CPU1) | 1738 | 10199 |
+| handler, max | 6971 | 46487 |
+| **interrupts missed** | **0** | **2 per exchange** |
+| round trip at the laptop, median | 468 us | 527 us |
+| wrong answers | 0 | 0 |
+
+Stage 3 is the result. With the SCU the work fits inside one period; without it,
+it takes 44 us, more than three periods, and costs two interrupts every time.
+Stage 1 is the one place the cache loses: CPU1 writes lines CPU0 read last and
+has to take ownership of each one, which uncached writes never pay.
+
+Before this a one-way sample ring did the same job - one 16-byte record per
+interrupt, 80,000 a second, drained by CPU1 into TCP. `ring_scu/` has that
+version and `ring_scu/RESULTS.txt` its numbers: the reader 6.2 times faster with
+the SCU, and the handler 25 % shorter once the ring indices were cacheable too.
+
+## 12. Network buffers outside the cache
+
+`IsCacheCoherent` in the GEM driver is always 0 here: the BSP generator only sets
+it for a Cortex-A53 running under Xen. That is the right answer for this part.
+The only coherent way into the SCU is ACP, and only the PL can reach it; the
+Ethernet DMA in the PS goes round the SCU and the L2 straight to the DDR
+controller. So the driver has to flush every frame it sends and invalidate every
+frame it receives. Making the MAC itself read from the cache would take a MAC and
+a DMA in the PL behind ACP.
+
+What can be done with the PS MAC is to take the buffers out of the cache, so
+there is nothing left to maintain:
+
+| | where | how |
+|---|---|---|
+| received frames | own section at `0x1E000000`, 512 x 1536 bytes | the driver allocates RX pbufs there with `pbuf_alloced_custom` instead of from the lwIP pool |
+| frames to send | the lwIP heap, moved to `0x1E100000` | `LWIP_RAM_HEAP_POINTER` in `lwipopts.h`; `main.c` maps the section before `lwip_init` |
+| invalidate, flush | - | both defined to nothing in `xemacpsif_dma.c` |
+| alignment | `ETH_PAD_SIZE` 2 | `RXOFFS` in `NWCFG` set to 2 so the MAC writes the frame after the pad |
+
+Same exchange as section 11, times in ns unless marked:
+
+| | cache, flush and invalidate | no maintenance | no maintenance, `ETH_PAD_SIZE` 2 |
+|---|---|---|---|
+| copy the request into `RECEIVE` | 3842 | 33263 | 9481 |
+| `tcp_write` | 1738 | 4032 | 3965 |
+| all measured stages | 17.7 us | 49.6 us | 25.8 us |
+| round trip at the laptop, median | 468 us | 551 us | 506 us |
+| exchanges per second | 1846 | 1598 | 1734 |
+| wrong answers | 0 | 0 | 0 |
+
+Correctness holds with no maintenance at all. The price is the CPU reading packet
+data straight from DDR, and most of it turned out to be alignment: the TCP
+payload starts 54 bytes into the frame, and `memcpy` from a misaligned uncached
+source makes one DDR access per word. Two bytes of padding put it on a 4-byte
+boundary and made the copy 3.5 times faster. What is left, 9.5 us against 3.8,
+is the cost of reading uncached. The laptop round trip varies by about 20 us
+between runs of the same build; the on-board stages are the steadier numbers.
+
+These are BSP edits, which a regeneration throws away, and they are not in
+`cpu1/apply_bsp_patch.py`. `lwip_noncacheable_experiment/README.md` says which
+file is which.
+
+One dead end: removing only the invalidate while the buffers stay cached killed
+the network after 37 exchanges. The pool hands the most recently freed buffer
+out first, so it still holds the previous frame in the cache; lwIP reads that,
+TCP takes it for an old segment and drops it, and from then on nothing arrives.
